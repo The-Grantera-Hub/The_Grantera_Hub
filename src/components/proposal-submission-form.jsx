@@ -1,33 +1,24 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CheckCircle, Copy, Mail, Loader2 } from 'lucide-react'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import {
-  CheckCircle2,
-  Upload,
-  FileText,
-  ArrowLeft,
-  AlertCircle,
-} from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { CheckCircle, Mail, Upload, FileText, AlertCircle } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
-import { setDoc, doc } from 'firebase/firestore'
-import { storage, db, functions } from '@/firebaseConfig'
-import { connectFunctionsEmulator, httpsCallable } from 'firebase/functions'
+import { storage, functions } from '@/firebaseConfig'
+import { httpsCallable } from 'firebase/functions'
 import { useSpinner } from '@/components/SpinnerProvider'
 import { toast } from 'sonner'
 import { proposalMail, sendEmail } from '@/components/utils/Sample'
 import { Navigation } from '@/components/navigation'
 
+// Constants
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+const ALLOWED_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]
 
 export default function ProposalSubmissionForm() {
   const { appContext, setAppContext, alertMsg, setAlertMsg } = useSpinner()
@@ -39,11 +30,12 @@ export default function ProposalSubmissionForm() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [error, setError] = useState('')
+  
   const fileInputRef = useRef(null)
   const codeRef = useRef(null)
   const submitRef = useRef(null)
-  
 
+  // Initialize Cloud Functions once
   if (!codeRef.current) {
     codeRef.current = httpsCallable(functions, 'getUserUniqueCode')
   }
@@ -52,28 +44,23 @@ export default function ProposalSubmissionForm() {
     submitRef.current = httpsCallable(functions, 'submitProposal')
   }
 
-  useEffect(() => {
-    connectFunctionsEmulator(functions, 'localhost', 5001)
+  // Memoized validation
+  const isCodeValid = useMemo(
+    () => uniqueCode.length > 0 && uniqueCode.startsWith('GRA-'),
+    [uniqueCode]
+  )
+
+  // Memoized file size formatter
+  const formatFileSize = useCallback((bytes) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
   }, [])
 
-  const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
-  const ALLOWED_TYPES = [
-    'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  ]
-
-  const isCodeValid = uniqueCode.length > 0 && uniqueCode.startsWith('GRA-')
-
-  const handleDragOver = (e) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }
-
-  const handleDragLeave = () => {
-    setIsDragging(false)
-  }
-
-  const validateFile = (file) => {
+  // Memoized file validator
+  const validateFile = useCallback((file) => {
     if (!ALLOWED_TYPES.includes(file.type)) {
       return 'Please upload a PDF or DOCX file only.'
     }
@@ -81,9 +68,19 @@ export default function ProposalSubmissionForm() {
       return 'File size must be less than 10 MB.'
     }
     return null
-  }
+  }, [])
 
-  const handleDrop = (e) => {
+  // Drag handlers
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }, [])
+
+  const handleDragLeave = useCallback(() => {
+    setIsDragging(false)
+  }, [])
+
+  const handleDrop = useCallback((e) => {
     e.preventDefault()
     setIsDragging(false)
     setError('')
@@ -97,9 +94,9 @@ export default function ProposalSubmissionForm() {
       }
       setFile(droppedFile)
     }
-  }
+  }, [validateFile])
 
-  const handleFileSelect = (e) => {
+  const handleFileSelect = useCallback((e) => {
     setError('')
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
@@ -110,27 +107,60 @@ export default function ProposalSubmissionForm() {
       }
       setFile(selectedFile)
     }
-  }
+  }, [validateFile])
 
-//send mail to applicant after succesful upload
-const handleSend = async (name,email) => {
+  const handleRemoveFile = useCallback(() => {
+    setFile(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }, [])
+
+  // Send confirmation email
+  const handleSend = useCallback(async (name, email) => {
     try {
       const html = proposalMail(name)
-      const result = await sendEmail(
+      await sendEmail(
         email,
         'Grantera Application Received ✅',
         html,
-        'We’ve received your application!'
+        "We've received your application!"
       )
-      toast.success({ type: 'success', message: `Email queued: ${result.id}` })
+      console.log('Confirmation email sent successfully')
     } catch (err) {
-      toast.error({ type: 'error', message: err.message })
+      console.error('Email sending failed:', err)
+      toast.error(err.message || 'Failed to send confirmation email')
     }
-  }
+  }, [])
 
+  // Handle code verification errors
+  const handleVerificationError = useCallback((message) => {
+    const errorMessages = {
+      'Could Not Verify Applicant': {
+        msg: 'Sorry it seems the code you entered is invalid, please recheck the code and try again.',
+        statusMsg: 'Incorrect Grantera Code',
+      },
+      'It seems Applicant proposal has been submitted in the past': {
+        msg: message,
+        statusMsg: 'Duplicate Submission Not Allowed',
+      },
+    }
 
-  //start
-  const handleSubmit = async (e) => {
+    const errorConfig = errorMessages[message] || {
+      msg: message,
+      statusMsg: 'Sorry an error occurred at our end',
+    }
+
+    setAlertMsg({
+      ...alertMsg,
+      open: true,
+      status: false,
+      ...errorConfig,
+    })
+  }, [alertMsg, setAlertMsg])
+
+  // Main form submission handler
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault()
 
     if (!isCodeValid) {
@@ -143,135 +173,107 @@ const handleSend = async (name,email) => {
       return
     }
 
-    //get User's code
+    // Start verification
     setAppContext({ ...appContext, spinner: true })
-    const res = await codeRef.current({ uniqueCode })
-    if (res.data.status === 'error') {
+
+    let res
+    try {
+      res = await codeRef.current({ uniqueCode })
+    } catch (err) {
+      console.error('Verification error:', err)
       setAppContext({ ...appContext, spinner: false })
-      if (res.data.message === 'Could Not Verify Applicant') {
-        return setAlertMsg({
-          ...alertMsg,
-          open: true,
-          status: false,
-          msg: 'Sorry it seems the code you entered is invalid, please recheck the code and try again.',
-          statusMsg: 'Incorrect Grantera Code',
-        })
-      } else if (
-        res.data.message ===
-        'It seems Applicant proposal has been submitted in the past'
-      ) {
-        return setAlertMsg({
-          ...alertMsg,
-          open: true,
-          status: false,
-          msg: res.data.message,
-          statusMsg: 'Duplicate Submission Not Allowed',
-        })
-      } else {
-        return setAlertMsg({
-          ...alertMsg,
-          open: true,
-          status: false,
-          msg: res.data.message,
-          statusMsg: 'Sorry an error occurred at our end',
-        })
-      }
+      setError('Verification failed. Please try again.')
+      return
     }
 
-    //put off the spinner after verifying uniqueCode
+    if (res.data.status === 'error') {
+      setAppContext({ ...appContext, spinner: false })
+      handleVerificationError(res.data.message)
+      return
+    }
+
+    // Verification successful
     setAppContext({ ...appContext, spinner: false })
-    //if the code is correct set the user's email
     setEmail(res.data.email)
-    // ✅ Initialize upload states
+
+    // Initialize upload
     setIsUploading(true)
     setUploadProgress(0)
     setError('')
     setIsSubmitted(false)
 
     try {
-      // 🔹 Step 1: Create a storage reference
       const fileRef = ref(storage, `proposals/${uniqueCode}_${file.name}`)
-
-      // 🔹 Step 2: Start resumable upload to track progress
       const uploadTask = uploadBytesResumable(fileRef, file)
 
-      // 🔹 Step 3: Listen to upload events (progress, error, complete)
       uploadTask.on(
         'state_changed',
         (snapshot) => {
-          // Update progress based on bytes transferred
-          const progress =
-            (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
           setUploadProgress(Math.round(progress))
         },
         (error) => {
-          console.error('Upload failed:', error)
+          console.error('Upload failed:', error.code, error.message)
           setError('Upload failed. Please try again.')
           setIsUploading(false)
         },
         async () => {
-          // 🔹 Step 4: On complete, get the file’s URL
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
+          try {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
+            
+            const applicant = await submitRef.current({
+              fileName: `${uniqueCode}_${file.name}`,
+              fileUrl: downloadURL,
+              uniqueCode,
+            })
 
-          // 🔹 Step 5: Store file metadata in Firestore
-          const applicant = await submitRef.current({
-            fileName: `${uniqueCode}_${file.name}`,
-            fileUrl: downloadURL,
-            uniqueCode,
-          })
-
-          if (applicant?.data?.state === 'error') {
-            if (
-              applicant?.data?.message ===
-              'seems you might have uploaded your proposal in the past'
-            ) {
+            if (applicant?.data?.state === 'error') {
+              console.error('Submission error:', applicant.data.message)
               setIsUploading(false)
-              setIsSubmitted(false)
-              return toast.error(applicant?.data?.message)
-            } else if (
-              applicant?.data?.message ===
-              'an error occured with the server while uploading'
-            ) {
-              setIsUploading(false)
-              setIsSubmitted(false)
-              return toast.error(applicant?.data?.message)
-            } else if (applicant?.data?.message === 'Applicant not found') {
-              setIsUploading(false)
-              setIsSubmitted(false)
-              return toast.error(applicant?.data?.message)
-            } else {
-              setIsUploading(false)
-              setIsSubmitted(false)
-              return toast.error(
-                'Sorry an error occured while uploading your details, try reaching out to us'
-              )
+              toast.error(applicant.data.message || 'Unexpected submission error')
+              return
             }
-          }
 
-          setIsUploading(false)
-          setIsSubmitted(true)
-          toast.success('Proposal uploaded successfully!')
-          //send to the applicants a congratulatory mail
-          await handleSend(res.data.name, res.data.email)
+            setIsUploading(false)
+            setIsSubmitted(true)
+            toast.success('Proposal uploaded successfully!')
+
+            // Send confirmation email
+            await handleSend(res.data.name, res.data.email)
+          } catch (err) {
+            console.error('Post-upload error:', err)
+            if (err.code === 'storage/unauthorized') {
+              setError('You do not have permission to access this file. Please contact support.')
+            } else {
+              setError('Something went wrong after upload.')
+            }
+            setIsUploading(false)
+          }
         }
       )
     } catch (err) {
-      console.error('Unexpected error:', err)
+      console.error('Upload initialization error:', err)
       setError('Something went wrong while uploading.')
       setIsUploading(false)
     }
-  }
-  //end
+  }, [
+    isCodeValid,
+    file,
+    uniqueCode,
+    appContext,
+    setAppContext,
+    handleVerificationError,
+    handleSend,
+  ])
 
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
-  }
+  const handleCodeChange = useCallback((e) => {
+    setUniqueCode(e.target.value.toUpperCase())
+  }, [])
 
-  if (isSubmitted) {
+  // Success screen component
+  const SuccessScreen = useMemo(() => {
+    if (!isSubmitted) return null
+
     return (
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
@@ -322,17 +324,23 @@ const handleSend = async (name,email) => {
         </div>
       </main>
     )
+  }, [isSubmitted, uniqueCode, email])
+
+  if (isSubmitted) {
+    return SuccessScreen
   }
 
   return (
     <div
       className={`min-h-screen ${
         appContext.spinner ? 'h-screen overflow-hidden' : ''
-      }bg-gradient-to-br from-primary/5 via-background to-secondary/5`}
+      } bg-gradient-to-br from-primary/5 via-background to-secondary/5`}
     >
       {/* Header */}
       <div className="border-b border-border bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-6"><Navigation/></div>
+        <div className="container mx-auto px-4 py-6">
+          <Navigation />
+        </div>
       </div>
 
       {/* Hero Section */}
@@ -352,7 +360,7 @@ const handleSend = async (name,email) => {
         <div className="max-w-3xl mx-auto">
           <div className="bg-card border border-border rounded-2xl p-8 md:p-10 shadow-lg">
             <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Unique Code Verification */}
+              {/* Unique Code Input */}
               <div className="space-y-3">
                 <Label htmlFor="uniqueCode" className="text-base font-semibold">
                   Enter Your Unique Grantera Code
@@ -362,7 +370,7 @@ const handleSend = async (name,email) => {
                   type="text"
                   placeholder="GRA-2025-XXXXXX"
                   value={uniqueCode}
-                  onChange={(e) => setUniqueCode(e.target.value.toUpperCase())}
+                  onChange={handleCodeChange}
                   className="text-lg h-12"
                   required
                 />
@@ -397,6 +405,7 @@ const handleSend = async (name,email) => {
                     accept=".pdf,.docx"
                     onChange={handleFileSelect}
                     className="hidden"
+                    aria-label="File upload input"
                   />
 
                   {!file ? (
@@ -439,11 +448,7 @@ const handleSend = async (name,email) => {
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => {
-                          setFile(null)
-                          if (fileInputRef.current)
-                            fileInputRef.current.value = ''
-                        }}
+                        onClick={handleRemoveFile}
                       >
                         Remove File
                       </Button>
@@ -455,9 +460,7 @@ const handleSend = async (name,email) => {
                 {isUploading && (
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Uploading...
-                      </span>
+                      <span className="text-muted-foreground">Uploading...</span>
                       <span className="font-medium text-foreground">
                         {uploadProgress}%
                       </span>

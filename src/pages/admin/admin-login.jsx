@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,16 +11,11 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, AlertCircle, Lock } from 'lucide-react'
+import { Loader2, AlertCircle, Lock, Eye, EyeOff } from 'lucide-react'
 import {
   signInWithEmailAndPassword,
-  onAuthStateChanged,
   setPersistence,
   browserSessionPersistence,
-  signInWithPopup,
-  GoogleAuthProvider,
-  FacebookAuthProvider,
-  sendEmailVerification,
 } from 'firebase/auth'
 import { useSpinner } from '@/components/SpinnerProvider'
 import { auth } from '@/firebaseConfig'
@@ -29,61 +24,86 @@ export default function AdminLogin() {
   const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   })
 
-  const { appContext, setAppContext, setAlertMsg, alertMsg } = useSpinner()
+  const { appContext, setAppContext, setAlertMsg } = useSpinner()
 
-  //   const handleSubmit = async (e) => {
-  //     e.preventDefault()
-  //     setError('')
-  //     setIsLoading(true)
+  // Memoized email change handler
+  const handleEmailChange = useCallback((e) => {
+    setFormData((prev) => ({ ...prev, email: e.target.value }))
+  }, [])
 
-  //     // Simulate authentication
-  //     await new Promise((resolve) => setTimeout(resolve, 1500))
+  // Memoized password change handler
+  const handlePasswordChange = useCallback((e) => {
+    setFormData((prev) => ({ ...prev, password: e.target.value }))
+  }, [])
 
-  //     // Simple demo authentication
-  //     if (
-  //       formData.email === 'admin@grantera.ng' &&
-  //       formData.password === 'admin123'
-  //     ) {
-  //       navigate('/admin')
-  //     } else {
-  //       setError('Invalid email or password. Please try again.')
-  //       setIsLoading(false)
-  //     }
-  //   }
+  // Toggle password visibility
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword((prev) => !prev)
+  }, [])
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setAppContext({ ...appContext, spinner: true })
-    console.log('loginnng in...')
+  // Memoized form validation
+  const isFormValid = useMemo(
+    () => formData.email && formData.password,
+    [formData.email, formData.password]
+  )
 
-    const email = formData.email
-    const password = formData.password
-    try {
-      await setPersistence(auth, browserSessionPersistence)
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      )
-      navigate('/admin')
-      setAppContext({ ...appContext, spinner: false })
-    } catch (error) {
-      setAppContext({ ...appContext, spinner: false })
-      setIsLoading(false)
-      setAlertMsg({
-        open: true,
-        status: false,
-        msg: error.code,
-        statusMsg: error.message,
-      })
-    }
-  }
+  // Memoized submit handler
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault()
+      setError('')
+      setIsLoading(true)
+      setAppContext((prev) => ({ ...prev, spinner: true }))
+
+      try {
+        await setPersistence(auth, browserSessionPersistence)
+        await signInWithEmailAndPassword(
+          auth,
+          formData.email,
+          formData.password
+        )
+
+        // Navigate on success
+        navigate('/admin')
+      } catch (error) {
+        console.error('Login error:', error)
+
+        // User-friendly error messages
+        const errorMessages = {
+          'auth/invalid-credential':
+            'Invalid email or password. Please try again.',
+          'auth/user-not-found': 'No account found with this email.',
+          'auth/wrong-password': 'Incorrect password. Please try again.',
+          'auth/invalid-email': 'Please enter a valid email address.',
+          'auth/user-disabled': 'This account has been disabled.',
+          'auth/too-many-requests':
+            'Too many failed attempts. Please try again later.',
+          'auth/network-request-failed':
+            'Network error. Please check your connection.',
+        }
+
+        const friendlyMessage = errorMessages[error.code] || error.message
+
+        setError(friendlyMessage)
+        setAlertMsg({
+          open: true,
+          status: false,
+          msg: friendlyMessage,
+          statusMsg: 'Login Failed',
+        })
+      } finally {
+        setIsLoading(false)
+        setAppContext((prev) => ({ ...prev, spinner: false }))
+      }
+    },
+    [formData.email, formData.password, navigate, setAppContext, setAlertMsg]
+  )
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-primary/90 to-secondary p-4">
@@ -124,36 +144,49 @@ export default function AdminLogin() {
                   type="email"
                   placeholder="admin@grantera.ng"
                   value={formData.email}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, email: e.target.value }))
-                  }
+                  onChange={handleEmailChange}
                   required
                   disabled={isLoading}
+                  autoComplete="email"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      password: e.target.value,
-                    }))
-                  }
-                  required
-                  disabled={isLoading}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter your password"
+                    value={formData.password}
+                    onChange={handlePasswordChange}
+                    required
+                    disabled={isLoading}
+                    autoComplete="current-password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={togglePasswordVisibility}
+                    disabled={isLoading}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label={
+                      showPassword ? 'Hide password' : 'Show password'
+                    }
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <Button
                 type="submit"
                 className="w-full bg-secondary hover:bg-secondary/90"
-                disabled={isLoading}
+                disabled={isLoading || !isFormValid}
               >
                 {isLoading ? (
                   <>

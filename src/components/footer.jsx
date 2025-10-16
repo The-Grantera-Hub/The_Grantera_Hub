@@ -66,7 +66,7 @@ export function Footer() {
             <ul className="space-y-3 text-primary-foreground/80">
               <li className="flex gap-2">
                 <Building2 className="w-5 h-5" />
-                <span className="-mt-[.2rem]">Lagos, Nigeria</span>
+                <span className="-mt-[.2rem]">Phortharcourt, Nigeria</span>
               </li>
               <li className="flex gap-2">
                 <a

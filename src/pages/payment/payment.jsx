@@ -13,12 +13,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, Shield, ArrowRight, Info } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Label } from '@/components/ui/label'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import { useSpinner } from '@/components/SpinnerProvider'
-import { connectFunctionsEmulator, httpsCallable } from 'firebase/functions'
-import { db, functions } from '@/firebaseConfig'
-import { addDoc } from 'firebase/firestore'
+import { httpsCallable } from 'firebase/functions'
+import { functions } from '@/firebaseConfig'
 
 export default function PaymentPage() {
   const [formData, setFormData] = useState({
@@ -27,67 +26,104 @@ export default function PaymentPage() {
     phoneNumber: '',
   })
   const { appContext, setAppContext } = useSpinner()
-  const [callBackUrl, setCallBack_URL] = useState('')
+  const [callBackUrl, setCallBackUrl] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+  // Ref for payment redirect function
+  const paymentRedirectRef = useRef(null)
+
+  // Initialize cloud function once
+  if (!paymentRedirectRef.current) {
+    paymentRedirectRef.current = httpsCallable(functions, 'paymentRedirect')
   }
 
+  // Memoized input change handler
+  const handleInputChange = useCallback((e) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }, [])
+
+  // Memoized form validation
+  const isFormValid = useMemo(
+    () => formData.fullName && formData.email && formData.phoneNumber,
+    [formData.fullName, formData.email, formData.phoneNumber]
+  )
+
+  // Redirect effect
   useEffect(() => {
     if (callBackUrl) {
       window.location.href = callBackUrl
     }
   }, [callBackUrl])
 
-  const pay = async (e) => {
-    e.preventDefault()
+  // Memoized payment handler
+  const handlePayment = useCallback(
+    async (e) => {
+      e.preventDefault()
 
-    // Validate form
-    if (!formData.fullName || !formData.email || !formData.phoneNumber) {
-      toast.error('Please fill in all required fields')
-      return
-    }
-
-    try {
-      setAppContext({ ...appContext, spinner: true })
-      setIsProcessing(true)
-      toast.message('You would soon be redirected to the payment gateway')
-      connectFunctionsEmulator(functions, 'localhost', 5001)
-      const paymentRedirect = httpsCallable(functions, 'paymentRedirect')
-
-      const res = await paymentRedirect({
-        name: formData.fullName,
-        email: formData.email,
-        phonenumber: formData.phoneNumber,
-      })
-
-      if (res.data?.status === 'success') {
-        toast.success('You are being redirected to the payment gateway')
-        setAppContext({ ...appContext, spinner: false })
-        localStorage.setItem(
-          'transactionReference',
-          res.data.transactionReference
-        )
-        setCallBack_URL(res.data.data.link)
-      } else {
-        setAppContext({ ...appContext, spinner: false })
-        console.log(res)
-        toast.warning('Sorry, an error occurred')
-        setIsProcessing(false)
+      // Validate form
+      if (!isFormValid) {
+        toast.error('Please fill in all required fields')
+        return
       }
-    } catch (err) {
-      setAppContext({ ...appContext, spinner: false })
-      console.error('Payment error:', err)
-      toast.error('Error occurred while redirecting')
-      setIsProcessing(false)
-    }
-  }
+
+      try {
+        setAppContext((prev) => ({ ...prev, spinner: true }))
+        setIsProcessing(true)
+        toast.message('You will soon be redirected to the payment gateway')
+
+        const res = await paymentRedirectRef.current({
+          email: formData.email,
+        })
+
+        if (res.data?.status === 'success') {
+          toast.success('You are being redirected to the payment gateway')
+          localStorage.setItem(
+            'transactionReference',
+            res.data.transactionReference
+          )
+          setCallBackUrl(res.data.data.link)
+        } else {
+          console.error('Payment error:', res)
+          toast.warning('Sorry, an error occurred')
+          setIsProcessing(false)
+        }
+      } catch (err) {
+        console.error('Payment error:', err)
+        toast.error('Error occurred while redirecting')
+        setIsProcessing(false)
+      } finally {
+        setAppContext((prev) => ({ ...prev, spinner: false }))
+      }
+    },
+    [isFormValid, formData.email, setAppContext]
+  )
+
+  // Memoized benefits list
+  const benefits = useMemo(
+    () => [
+      'Professional review of your business proposal by our expert panel',
+      'Administrative costs for processing and evaluating applications',
+      'Ensures commitment from serious entrepreneurs only',
+      'Access to exclusive mentorship opportunities (optional)',
+    ],
+    []
+  )
+
+  // Memoized important notes
+  const importantNotes = useMemo(
+    () => [
+      'This fee is non-refundable and confirms your application submission',
+      'Payment confirmation will be sent to your email immediately',
+      "You'll receive your unique application code after payment",
+      'Keep your payment receipt for your records',
+    ],
+    []
+  )
 
   return (
     <div
-      className={`min-h-screen bg-background  ${
+      className={`min-h-screen bg-background ${
         appContext.spinner ? 'h-screen overflow-hidden' : ''
       }`}
     >
@@ -135,32 +171,12 @@ export default function PaymentPage() {
                     What This Fee Covers:
                   </h3>
                   <ul className="space-y-2 ml-7 text-sm text-foreground/80">
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#FFB800] mt-1">•</span>
-                      <span>
-                        Professional review of your business proposal by our
-                        expert panel
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#FFB800] mt-1">•</span>
-                      <span>
-                        Administrative costs for processing and evaluating
-                        applications
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#FFB800] mt-1">•</span>
-                      <span>
-                        Ensures commitment from serious entrepreneurs only
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#FFB800] mt-1">•</span>
-                      <span>
-                        Access to exclusive mentorship opportunities (optional)
-                      </span>
-                    </li>
+                    {benefits.map((benefit, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <span className="text-[#FFB800] mt-1">•</span>
+                        <span>{benefit}</span>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               </div>
@@ -179,12 +195,10 @@ export default function PaymentPage() {
               </div>
 
               {/* Form */}
-              <form onSubmit={pay}>
+              <form onSubmit={handlePayment}>
                 <Card className="p-4 rounded-lg">
                   <CardHeader>
-                    <div className="flex items-center justify-between mb-2">
-                      <CardTitle>Your payment details</CardTitle>
-                    </div>
+                    <CardTitle>Your payment details</CardTitle>
                   </CardHeader>
 
                   <CardContent className="space-y-6">
@@ -202,9 +216,7 @@ export default function PaymentPage() {
                           disabled={isProcessing}
                         />
                       </div>
-                    </div>
 
-                    <div className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="email">Email *</Label>
                         <Input
@@ -218,9 +230,7 @@ export default function PaymentPage() {
                           disabled={isProcessing}
                         />
                       </div>
-                    </div>
 
-                    <div className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="phoneNumber">Phone Number *</Label>
                         <Input
@@ -244,13 +254,7 @@ export default function PaymentPage() {
                     type="submit"
                     size="lg"
                     className="w-full bg-[#003366] hover:bg-[#00994C] text-white text-lg py-6"
-                    disabled={
-                      isProcessing ||
-                      !formData.fullName ||
-                      !formData.email ||
-                      !formData.phoneNumber
-                    }
-                    //onClick={pay}
+                    disabled={isProcessing || !isFormValid}
                   >
                     {isProcessing ? 'Processing...' : 'Proceed to Payment'}
                     {!isProcessing && <ArrowRight className="ml-2 h-5 w-5" />}
@@ -278,19 +282,9 @@ export default function PaymentPage() {
                     Important Notes:
                   </p>
                   <ul className="space-y-1 text-xs text-muted-foreground">
-                    <li>
-                      • This fee is non-refundable and confirms your application
-                      submission
-                    </li>
-                    <li>
-                      • Payment confirmation will be sent to your email
-                      immediately
-                    </li>
-                    <li>
-                      • You'll receive your unique application code after
-                      payment
-                    </li>
-                    <li>• Keep your payment receipt for your records</li>
+                    {importantNotes.map((note, index) => (
+                      <li key={index}>• {note}</li>
+                    ))}
                   </ul>
                 </AlertDescription>
               </Alert>

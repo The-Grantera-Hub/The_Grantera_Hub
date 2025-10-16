@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { setDoc, doc } from 'firebase/firestore'
-import { db, functions } from '@/firebaseConfig'
+import { db } from '@/firebaseConfig'
 import {
   Card,
   CardContent,
@@ -16,15 +16,12 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   CheckCircle,
-  Upload,
   Loader2,
-  AlertCircle,
   Mail,
-  FileBadge2Icon,
 } from 'lucide-react'
-import { connectFunctionsEmulator } from 'firebase/functions'
 import { toast } from 'sonner'
 import { buildApplicantEmail, sendEmail } from '@/components/utils/Sample'
+import { Link } from 'react-router-dom'
 
 export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
   const [step, setStep] = useState(1)
@@ -43,19 +40,19 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
     grantPurpose: '',
   })
 
-  const handleInputChange = (e) => {
+  // Memoized input change handler to prevent recreation on every render
+  const handleInputChange = useCallback((e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
-  }
-
-  const handleNext = () => setStep((prev) => Math.min(prev + 1, 3))
-  const handleBack = () => setStep((prev) => Math.max(prev - 1, 1))
-
-  useEffect(() => {
-    connectFunctionsEmulator(functions, 'localhost', 5001)
   }, [])
 
-  const handleSend = async () => {
+  // Memoized navigation handlers
+  const handleNext = useCallback(() => setStep((prev) => Math.min(prev + 1, 2)), [])
+  const handleBack = useCallback(() => setStep((prev) => Math.max(prev - 1, 1)), [])
+  const toggleMentorship = useCallback(() => setWantsMentorship((prev) => !prev), [])
+
+  // Memoized email sending function
+  const handleSend = useCallback(async () => {
     const applicant = {
       email: formData.email,
       fullName: formData.fullName,
@@ -70,17 +67,19 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
         applicant.email,
         'Grantera Application Received ✅',
         html,
-        'We’ve received your application!'
+        "We've received your application!"
       )
-      toast.success({ type: 'success', message: `Email queued: ${result.id}` })
+      console.log('Email sent successfully', result)
     } catch (err) {
-      toast.error({ type: 'error', message: err.message })
+      console.error('Email sending failed:', err)
     }
-  }
+  }, [formData.email, formData.fullName, formData.businessName, formData.grantAmount, uniqueCode, wantsMentorship])
 
-  const handleSubmit = async (e) => {
+  // Memoized form submission handler
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault()
     setIsSubmitting(true)
+    
     try {
       await setDoc(doc(db, 'applicants', uniqueCode), {
         tx_ref: rawTx_Ref,
@@ -95,30 +94,49 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
         businessDescription: formData.businessDescription,
         grantPurpose: formData.grantPurpose,
         wantsMentorship,
-        status: 'pending', //user hasn't submited proposal yet
+        status: 'pending',
         lastStatusUpdatedBy: 'System',
-        aiStatus: 'idle', //user hasn't submited proposal yet
+        aiStatus: 'idle',
         createdAt: new Date(),
       })
-      setIsSubmitting(false)
+      
       setIsSubmitted(true)
       await handleSend()
     } catch (error) {
       if (error.message === 'Missing or insufficient permissions.') {
-        setIsSubmitting(false)
-        return toast.error(
+        toast.error(
           "It seems you might have applied in the past, and so can't update your details again, sorry."
         )
+      } else {
+        toast.error(
+          'An error occurred while uploading your details, please refresh the page to try resolving this.'
+        )
+        console.error('Submission error:', error.message)
       }
-      toast.error(
-        'An error occurred while uploading your details, please refresh the page to try resolving this.'
-      )
+    } finally {
       setIsSubmitting(false)
-      console.log('error', error.message)
     }
-  }
+  }, [formData, uniqueCode, rawTx_Ref, wantsMentorship, handleSend])
 
-  if (isSubmitted) {
+  // Memoized validation states
+  const isStep1Valid = useMemo(() => 
+    formData.fullName && formData.email && formData.phone && formData.location,
+    [formData.fullName, formData.email, formData.phone, formData.location]
+  )
+
+  const isStep2Valid = useMemo(() => 
+    formData.businessName && 
+    formData.businessType && 
+    formData.grantAmount && 
+    formData.businessDescription && 
+    formData.grantPurpose,
+    [formData.businessName, formData.businessType, formData.grantAmount, formData.businessDescription, formData.grantPurpose]
+  )
+
+  // Success screen component (memoized to prevent rerenders)
+  const SuccessScreen = useMemo(() => {
+    if (!isSubmitted) return null
+    
     return (
       <Card className="border-[#00994C] rounded-lg">
         <CardContent className="p-12 text-center">
@@ -134,15 +152,24 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
             Thank you for applying to Grantera. We've received your application
             and will review it carefully. You'll hear from us within 2-4 weeks.
           </p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground mb-6">
             A confirmation email has been sent to{' '}
             <span className="font-semibold text-foreground">
               {formData.email}
             </span>
           </p>
+          <Link to="/submit-proposal">
+            <Button className="bg-[#00994C] text-white hover:bg-[#007a36]">
+              Proceed to Proposal Submission
+            </Button>
+          </Link>
         </CardContent>
       </Card>
     )
+  }, [isSubmitted, formData.email])
+
+  if (isSubmitted) {
+    return SuccessScreen
   }
 
   return (
@@ -150,17 +177,13 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
       <Card className="p-4 rounded-lg">
         <CardHeader>
           <div className="flex items-center justify-between mb-2">
-            <CardTitle onClick={console.log('clicked')}>
-              Grant Application
-            </CardTitle>
+            <CardTitle>Grant Application</CardTitle>
             <span className="text-sm text-muted-foreground">
               Step {step} of 2
             </span>
           </div>
           <CardDescription>
-            {step === 1 && 'Tell us about yourself'}
-            {step === 2 && 'Tell us about your business'}
-            {/*  {step === 3 && 'Upload your business proposal'} */}
+            {step === 1 ? 'Tell us about yourself' : 'Tell us about your business'}
           </CardDescription>
           <div className="flex gap-2 mt-4">
             {[1, 2].map((s) => (
@@ -175,7 +198,6 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* Step 1: Personal Information */}
           {step === 1 && (
             <div className="space-y-4">
               <div className="space-y-2">
@@ -227,7 +249,6 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
             </div>
           )}
 
-          {/* Step 2: Business Information */}
           {step === 2 && (
             <div className="space-y-4">
               <div className="space-y-2">
@@ -295,7 +316,7 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
                   required
                 />
               </div>
-              {/* Mentorship Toggle */}
+              
               <div className="bg-[#00994C]/5 rounded-lg p-6 space-y-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
@@ -313,10 +334,11 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
                   <button
                     type="button"
                     id="mentorship"
-                    onClick={() => setWantsMentorship(!wantsMentorship)}
+                    onClick={toggleMentorship}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                       wantsMentorship ? 'bg-[#00994C]' : 'bg-muted'
                     }`}
+                    aria-label="Toggle mentorship"
                   >
                     <span
                       className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -331,7 +353,7 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
                   </Badge>
                 )}
               </div>
-              {/* Important Notice */}
+              
               <Alert className="border-[#FFB800]/30 bg-[#FFB800]/5">
                 <Mail className="h-4 w-4 text-[#FFB800]" />
                 <AlertDescription className="ml-6">
@@ -350,7 +372,6 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
             </div>
           )}
 
-          {/* Navigation Buttons */}
           <div className="flex gap-4 pt-4">
             {step > 1 && (
               <Button
@@ -367,26 +388,14 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
                 type="button"
                 onClick={handleNext}
                 className="flex-1 bg-primary hover:bg-secondary text-white"
-                disabled={
-                  formData.fullName == '' ||
-                  formData.email == '' ||
-                  formData.phone == '' ||
-                  formData.location == ''
-                }
+                disabled={!isStep1Valid}
               >
                 Next
               </Button>
             ) : (
               <Button
                 type="submit"
-                disabled={
-                  isSubmitting ||
-                  formData.businessName == '' ||
-                  formData.businessType == '' ||
-                  formData.grantAmount == '' ||
-                  formData.businessDescription == '' ||
-                  formData.grantPurpose == ''
-                }
+                disabled={isSubmitting || !isStep2Valid}
                 className="flex-1 bg-primary hover:bg-secondary text-white disabled:opacity-50"
               >
                 {isSubmitting ? (
