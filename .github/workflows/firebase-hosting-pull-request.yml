@@ -14,14 +14,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Move into your actual project folder
+      # Move into the actual project directory
       - name: Install dependencies
         run: npm install
-        working-directory: ./grantera-vite
+        working-directory: ./The_Grantera_Hub
 
       - name: Build project
         run: npm run build
-        working-directory: ./grantera-vite
+        working-directory: ./The_Grantera_Hub
 
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
