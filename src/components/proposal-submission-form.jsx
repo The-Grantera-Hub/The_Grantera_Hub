@@ -276,7 +276,7 @@ export default function ProposalSubmissionForm() {
 
     return (
       <main className="pt-24 pb-16">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
+        <div className="container mx-auto max-[700px]:px-1 px-4 sm:px-6 lg:px-8 max-w-3xl">
           <Card className="border-[#00994C] shadow-lg rounded-lg p-4">
             <CardContent className="pt-12 pb-12 text-center">
               <div className="flex justify-center mb-6">
@@ -284,7 +284,7 @@ export default function ProposalSubmissionForm() {
                   <CheckCircle className="w-12 h-12 text-[#00994C]" />
                 </div>
               </div>
-              <h2 className="text-3xl font-bold mb-4 font-[family-name:var(--font-playfair)] text-[#003366]">
+              <h2 className="text-3xl font-bold mb-4 font-[family-name:var(--font-playfair)] text-[#003366] max-[700px]:text-[1rem]">
                 Application Submitted Successfully!
               </h2>
               <p className="text-muted-foreground mb-6 leading-relaxed max-w-md mx-auto">
@@ -381,7 +381,7 @@ export default function ProposalSubmissionForm() {
 
               {/* File Upload Area */}
               <div className="space-y-3">
-                <Label className="text-base font-semibold">
+                <Label className="text-base font-semibold max-[390px]:text-[.7rem]">
                   Upload Your Business Proposal
                 </Label>
 
@@ -439,7 +439,7 @@ export default function ProposalSubmissionForm() {
                           <FileText className="w-8 h-8 text-secondary" />
                         </div>
                       </div>
-                      <p className="text-lg font-medium text-foreground mb-1">
+                      <p className="text-lg font-medium text-foreground mb-1 max-[700px]:truncate">
                         {file.name}
                       </p>
                       <p className="text-sm text-muted-foreground mb-4">
@@ -460,7 +460,9 @@ export default function ProposalSubmissionForm() {
                 {isUploading && (
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Uploading...</span>
+                      <span className="text-muted-foreground">
+                        Uploading...
+                      </span>
                       <span className="font-medium text-foreground">
                         {uploadProgress}%
                       </span>

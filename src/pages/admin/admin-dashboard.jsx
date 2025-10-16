@@ -517,14 +517,14 @@ export default function AdminDashboard() {
     []
   )
 
-  const toggleRole = useCallback(() => {
+  /* const toggleRole = useCallback(() => {
     setCurrentUser((prev) => ({
       ...prev,
       role: prev.role === 'admin' ? 'reviewer' : 'admin',
       name: prev.role === 'admin' ? 'Dr. Okonkwo' : 'Admin User',
       uid: prev.role === 'admin' ? 'rev_001' : 'admin_001',
     }))
-  }, [])
+  }, []) */
 
   const SignOut = useCallback(() => {
     signOut(auth).then(() => {
@@ -1003,7 +1003,7 @@ const handleConfirmReassign = useCallback(async () => {
                     </Button>
                   )}
 
-                  <Button
+                 {/*  <Button
                     variant="outline"
                     size="sm"
                     onClick={toggleRole}
@@ -1013,7 +1013,7 @@ const handleConfirmReassign = useCallback(async () => {
                     Switch to{' '}
                     {currentUser.role === 'admin' ? 'reviewer' : 'admin'} View
                   </Button>
-
+ */}
                   <div className="relative">
                     <Button
                       variant="ghost"

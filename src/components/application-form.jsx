@@ -14,11 +14,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  CheckCircle,
-  Loader2,
-  Mail,
-} from 'lucide-react'
+import { CheckCircle, Loader2, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 import { buildApplicantEmail, sendEmail } from '@/components/utils/Sample'
 import { Link } from 'react-router-dom'
@@ -47,9 +43,18 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
   }, [])
 
   // Memoized navigation handlers
-  const handleNext = useCallback(() => setStep((prev) => Math.min(prev + 1, 2)), [])
-  const handleBack = useCallback(() => setStep((prev) => Math.max(prev - 1, 1)), [])
-  const toggleMentorship = useCallback(() => setWantsMentorship((prev) => !prev), [])
+  const handleNext = useCallback(
+    () => setStep((prev) => Math.min(prev + 1, 2)),
+    []
+  )
+  const handleBack = useCallback(
+    () => setStep((prev) => Math.max(prev - 1, 1)),
+    []
+  )
+  const toggleMentorship = useCallback(
+    () => setWantsMentorship((prev) => !prev),
+    []
+  )
 
   // Memoized email sending function
   const handleSend = useCallback(async () => {
@@ -73,73 +78,94 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
     } catch (err) {
       console.error('Email sending failed:', err)
     }
-  }, [formData.email, formData.fullName, formData.businessName, formData.grantAmount, uniqueCode, wantsMentorship])
+  }, [
+    formData.email,
+    formData.fullName,
+    formData.businessName,
+    formData.grantAmount,
+    uniqueCode,
+    wantsMentorship,
+  ])
 
   // Memoized form submission handler
-  const handleSubmit = useCallback(async (e) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    
-    try {
-      await setDoc(doc(db, 'applicants', uniqueCode), {
-        tx_ref: rawTx_Ref,
-        fullName: formData.fullName,
-        uniqueCode,
-        email: formData.email,
-        phone: formData.phone,
-        businessName: formData.businessName,
-        businessType: formData.businessType,
-        location: formData.location,
-        grantAmount: formData.grantAmount,
-        businessDescription: formData.businessDescription,
-        grantPurpose: formData.grantPurpose,
-        wantsMentorship,
-        status: 'pending',
-        lastStatusUpdatedBy: 'System',
-        aiStatus: 'idle',
-        createdAt: new Date(),
-      })
-      
-      setIsSubmitted(true)
-      await handleSend()
-    } catch (error) {
-      if (error.message === 'Missing or insufficient permissions.') {
-        toast.error(
-          "It seems you might have applied in the past, and so can't update your details again, sorry."
-        )
-      } else {
-        toast.error(
-          'An error occurred while uploading your details, please refresh the page to try resolving this.'
-        )
-        console.error('Submission error:', error.message)
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault()
+      setIsSubmitting(true)
+
+      try {
+        await setDoc(doc(db, 'applicants', uniqueCode), {
+          tx_ref: rawTx_Ref,
+          fullName: formData.fullName,
+          uniqueCode,
+          email: formData.email,
+          phone: formData.phone,
+          businessName: formData.businessName,
+          businessType: formData.businessType,
+          location: formData.location,
+          grantAmount: formData.grantAmount,
+          businessDescription: formData.businessDescription,
+          grantPurpose: formData.grantPurpose,
+          wantsMentorship,
+          status: 'pending',
+          lastStatusUpdatedBy: 'System',
+          aiStatus: 'idle',
+          createdAt: new Date(),
+        })
+
+        setIsSubmitted(true)
+        await handleSend()
+      } catch (error) {
+        if (error.message === 'Missing or insufficient permissions.') {
+          toast.error(
+            "It seems you might have applied in the past, and so can't update your details again, sorry."
+          )
+        } else {
+          toast.error(
+            'An error occurred while uploading your details, please refresh the page to try resolving this.'
+          )
+          console.error('Submission error:', error.message)
+        }
+      } finally {
+        setIsSubmitting(false)
       }
-    } finally {
-      setIsSubmitting(false)
-    }
-  }, [formData, uniqueCode, rawTx_Ref, wantsMentorship, handleSend])
+    },
+    [formData, uniqueCode, rawTx_Ref, wantsMentorship, handleSend]
+  )
 
   // Memoized validation states
-  const isStep1Valid = useMemo(() => 
-    formData.fullName && formData.email && formData.phone && formData.location,
+  const isStep1Valid = useMemo(
+    () =>
+      formData.fullName &&
+      formData.email &&
+      formData.phone &&
+      formData.location,
     [formData.fullName, formData.email, formData.phone, formData.location]
   )
 
-  const isStep2Valid = useMemo(() => 
-    formData.businessName && 
-    formData.businessType && 
-    formData.grantAmount && 
-    formData.businessDescription && 
-    formData.grantPurpose,
-    [formData.businessName, formData.businessType, formData.grantAmount, formData.businessDescription, formData.grantPurpose]
+  const isStep2Valid = useMemo(
+    () =>
+      formData.businessName &&
+      formData.businessType &&
+      formData.grantAmount &&
+      formData.businessDescription &&
+      formData.grantPurpose,
+    [
+      formData.businessName,
+      formData.businessType,
+      formData.grantAmount,
+      formData.businessDescription,
+      formData.grantPurpose,
+    ]
   )
 
   // Success screen component (memoized to prevent rerenders)
   const SuccessScreen = useMemo(() => {
     if (!isSubmitted) return null
-    
+
     return (
       <Card className="border-[#00994C] rounded-lg">
-        <CardContent className="p-12 text-center">
+        <CardContent className="p-12 text-center max-[700px]:p-4">
           <div className="flex justify-center mb-6">
             <div className="w-16 h-16 rounded-full bg-[#00994C]/10 flex items-center justify-center">
               <CheckCircle className="w-10 h-10 text-[#00994C]" />
@@ -159,7 +185,7 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
             </span>
           </p>
           <Link to="/submit-proposal">
-            <Button className="bg-[#00994C] text-white hover:bg-[#007a36]">
+            <Button className="bg-[#00994C] text-white hover:bg-[#007a36] max-[700px]:py-2 max-[700px]:text-[.55rem]">
               Proceed to Proposal Submission
             </Button>
           </Link>
@@ -183,7 +209,9 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
             </span>
           </div>
           <CardDescription>
-            {step === 1 ? 'Tell us about yourself' : 'Tell us about your business'}
+            {step === 1
+              ? 'Tell us about yourself'
+              : 'Tell us about your business'}
           </CardDescription>
           <div className="flex gap-2 mt-4">
             {[1, 2].map((s) => (
@@ -316,17 +344,17 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
                   required
                 />
               </div>
-              
-              <div className="bg-[#00994C]/5 rounded-lg p-6 space-y-4">
-                <div className="flex items-start justify-between gap-4">
+
+              <div className="bg-[#00994C]/5 rounded-lg p-6 max-[700px]:pl-2 space-y-4">
+                <div className="flex items-start justify-between gap-4 max-[700px]:gap-2">
                   <div className="flex-1">
                     <Label
                       htmlFor="mentorship"
-                      className="text-base font-semibold text-[#003366] cursor-pointer"
+                      className="text-base font-semibold text-[#003366] cursor-pointer max-[700px]:text-[.85rem]"
                     >
                       Would you like to receive mentorship?
                     </Label>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm text-muted-foreground mt-1 max-[700px]:text-[.62rem]">
                       Get guidance from experienced entrepreneurs and business
                       experts
                     </p>
@@ -336,7 +364,7 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
                     id="mentorship"
                     onClick={toggleMentorship}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      wantsMentorship ? 'bg-[#00994C]' : 'bg-muted'
+                      wantsMentorship ? 'bg-[#00994C]' : 'bg-gray-600/60'
                     }`}
                     aria-label="Toggle mentorship"
                   >
@@ -348,16 +376,16 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
                   </button>
                 </div>
                 {wantsMentorship && (
-                  <Badge className="bg-[#FFB800] text-[#003366] hover:bg-[#FFB800]/90 p-2">
+                  <Badge className="bg-[#FFB800] text-[#003366] max-[700px]:text-[.5rem] hover:bg-[#FFB800]/90 p-2">
                     Mentorship program included
                   </Badge>
                 )}
               </div>
-              
+
               <Alert className="border-[#FFB800]/30 bg-[#FFB800]/5">
                 <Mail className="h-4 w-4 text-[#FFB800]" />
-                <AlertDescription className="ml-6">
-                  <p className="font-semibold text-[#003366] -mt-5 mb-2">
+                <AlertDescription className="ml-6 max-[700px]:ml-2">
+                  <p className="font-semibold text-[#003366] -mt-5 mb-2 max-[700px]:text-center">
                     Next Steps:
                   </p>
                   <p className="text-sm text-foreground/80">
@@ -396,7 +424,7 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
               <Button
                 type="submit"
                 disabled={isSubmitting || !isStep2Valid}
-                className="flex-1 bg-primary hover:bg-secondary text-white disabled:opacity-50"
+                className="flex-1 bg-primary hover:bg-secondary text-white disabled:opacity-50 max-[700px]:text-[.5rem] max-[700px]:flex-[1.5_1.5_0] max-[700px]:p-0"
               >
                 {isSubmitting ? (
                   <>

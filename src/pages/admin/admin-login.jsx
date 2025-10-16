@@ -199,9 +199,9 @@ export default function AdminLogin() {
               </Button>
 
               <div className="text-center text-sm text-muted-foreground pt-4 border-t">
-                <p>Demo credentials:</p>
+                <p>Have a Great Time Admin/Reviewer</p>
                 <p className="font-mono text-xs mt-1">
-                  admin@grantera.ng / admin123
+                  Legends
                 </p>
               </div>
             </form>
