@@ -123,7 +123,7 @@ export default function PaymentPage() {
 
   return (
     <div
-      className={`min-h-screen bg-background ${
+      className={`min-h-screen bg-background max-[700px]:w-screen ${
         appContext.spinner ? 'h-screen overflow-hidden' : ''
       }`}
     >
@@ -143,7 +143,7 @@ export default function PaymentPage() {
 
           {/* Payment Card */}
           <Card className="border-[#003366] shadow-lg rounded-lg">
-            <CardHeader className="px-2 rounded-t-lg bg-gradient-to-br from-[#003366] to-[#00994C] text-white">
+            <CardHeader className="rounded-t-lg bg-gradient-to-br from-[#003366] to-[#00994C] text-white">
               <CardTitle className="text-2xl font-bold font-[family-name:var(--font-playfair)]">
                 Commitment Fee Required
               </CardTitle>
