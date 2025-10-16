@@ -1,9 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { Navigation } from '@/components/navigation'
 import { Footer } from '@/components/footer'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { useSpinner } from '@/components/SpinnerProvider'
 import {
   Card,
@@ -13,123 +11,63 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { CheckCircle, Copy, Mail, Loader2 } from 'lucide-react'
+import { CheckCircle, Copy, Mail } from 'lucide-react'
 import ApplicationSection from '@/components/sections/application-section'
-import { connectFunctionsEmulator, httpsCallable } from 'firebase/functions'
+import { httpsCallable } from 'firebase/functions'
 import { functions } from '@/firebaseConfig'
 import { toast } from 'sonner'
-import useRetry from '@/components/web-hook-retry-hook'
 import FeedbackAlert from '@/components/Alert'
 
 export default function PaymentSuccessPage() {
   const { appContext, setAppContext, alertMsg, setAlertMsg } = useSpinner()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [WebHookFailed, setWebHookFailed] = useState(false)
   const [uniqueCode, setUniqueCode] = useState(null)
   const [isSubmitted, setIsSubmitted] = useState(false)
-  const [wantsMentorship, setWantsMentorship] = useState(false)
   const [verifyPay, setVerifyPay] = useState(false)
   const [formData, setFormData] = useState({
-    fullName: '',
-    phone: '',
     email: '',
-    nin: '',
-    accountNumber: '',
   })
 
-  const { WebHookRetry } = useRetry()
+  const transactionReference = useMemo(
+    () => localStorage.getItem('transactionReference'),
+    []
+  )
 
-  const searchParam = new URLSearchParams(window.location.search)
-  const transactionReference = localStorage.getItem('transactionReference')
-  const transaction_id = searchParam.get('transaction_id')
-  //console.log(rawTx_Ref)
-  console.log(transaction_id)
+  // Refs for cloud functions to prevent recreation
+  const verifyTransactionRef = useRef(null)
+  const getUserCodeRef = useRef(null)
 
-  
-
-  useEffect(() => {
-    if (!WebHookFailed) return
-    const initiateRetry = async () => {
-      await WebHookRetry(
-        transaction_id,
-        (res) => {
-          // ✅ onSuccess
-          setAlertMsg({
-            open: true,
-            status: true,
-            msg: 'Payment confirmed! Refreshing your dashboard...',
-            statusMsg: 'Payment Verified',
-          })
-        },
-        (err) => {
-          // ❌ onFailure
-          setAlertMsg({
-            open: true,
-            status: false,
-            msg: 'Verification failed. Please refresh your page.',
-            statusMsg: 'Retry Limit Reached',
-          })
-        },
-        (progress) => {
-          // 🔁 onProgress
-          switch (progress.stage) {
-            case 'retrying':
-              setAlertMsg({
-                open: true,
-                status: false,
-                msg: progress.message,
-                statusMsg: 'Please wait...',
-              })
-              break
-            case 'countdown':
-              setAlertMsg({
-                open: true,
-                status: false,
-                msg: progress.message,
-                statusMsg: `Next check in ${progress.nextIn}s`,
-              })
-              break
-            case 'success':
-              setAlertMsg({
-                open: true,
-                status: true,
-                msg: progress.message,
-                statusMsg: 'Payment Successful',
-              })
-              break
-            case 'timeout':
-            case 'error':
-              setAlertMsg({
-                open: true,
-                status: false,
-                msg: progress.message,
-                statusMsg: 'Verification Timeout',
-              })
-              break
-            default:
-              break
-          }
-        }
-      )
-    }
-
-    initiateRetry()
-  }, [WebHookFailed]) // Add dependency
-
-  useEffect(() => {
-    connectFunctionsEmulator(functions, 'localhost', 5001)
-  }, [])
-
-  //verify Payment Status
-  const VerifyPay = async () => {
-    setAppContext({ ...appContext, spinner: true })
-    const verifyTransactionStatus = httpsCallable(
+  // Initialize cloud functions once
+  if (!verifyTransactionRef.current) {
+    verifyTransactionRef.current = httpsCallable(
       functions,
       'verifyTransactionStatus'
     )
+  }
+
+  if (!getUserCodeRef.current) {
+    getUserCodeRef.current = httpsCallable(functions, 'getUserUniqueCode')
+  }
+
+  // Memoized alert setter
+  const showAlert = useCallback(
+    (status, statusMsg, msg) => {
+      setAlertMsg({
+        ...alertMsg,
+        open: true,
+        status,
+        statusMsg,
+        msg,
+      })
+    },
+    [alertMsg, setAlertMsg]
+  )
+
+  // Verify payment status
+  const verifyPayment = useCallback(async () => {
+    setAppContext((prev) => ({ ...prev, spinner: true }))
+
     try {
-      const res = await verifyTransactionStatus({
+      const res = await verifyTransactionRef.current({
         transactionReference,
       })
 
@@ -137,139 +75,137 @@ export default function PaymentSuccessPage() {
         res.data?.status === 'success' &&
         res.data?.message === 'Transaction verified successfully'
       ) {
-        return setVerifyPay(true)
-      } else {
-        setVerifyPay(false)
-        if (res.data.message === 'Request timed out') {
-          setAlertMsg({
-            ...alertMsg,
-            open: true,
-            status: false,
-            msg: 'Verification process took too long, please refresh the page.',
-            statusMsg: 'Request Timeout',
-          })
-          return toast.error(
+        setVerifyPay(true)
+        return true
+      }
+
+      setVerifyPay(false)
+
+      // Handle specific error cases
+      const errorHandlers = {
+        'Request timed out': () => {
+          showAlert(
+            false,
+            'Request Timeout',
+            'Verification process took too long, please refresh the page.'
+          )
+          toast.error(
             'Verification process took too long, please refresh the page'
           )
-        }
-        //if the applicant did not pay the right amount
-        if (
-          res.data.message === "Unfortunately You didn't pay the right amount"
-        ) {
-          setAlertMsg({
-            ...alertMsg,
-            open: true,
-            status: false,
-            msg: "Unfortunately You didn't pay the right amount.",
-            statusMsg: 'Incorrect Payment Amount',
-          })
-          return toast.error(`${res.data.message}`)
-        }
-        //if the applicant did not actually pay
-        else if (res.data.message === 'No transaction was found for this id') {
-          setAlertMsg({
-            ...alertMsg,
-            open: true,
-            status: false,
-            msg: 'No transaction was found for this id.',
-            statusMsg: 'Missing Transaction Records',
-          })
-          return toast.error(`${res.data.message}: ${transactionReference}`)
-        }
+        },
+        "Unfortunately You didn't pay the right amount": () => {
+          showAlert(
+            false,
+            'Incorrect Payment Amount',
+            "Unfortunately You didn't pay the right amount."
+          )
+          toast.error(res.data.message)
+        },
+        'No transaction was found for this id': () => {
+          showAlert(
+            false,
+            'Missing Transaction Records',
+            'No transaction was found for this id.'
+          )
+          toast.error(`${res.data.message}: ${transactionReference}`)
+        },
+      }
 
-        setAlertMsg({
-          ...alertMsg,
-          open: true,
-          status: false,
-          msg: `Sorry an error occured, please reach out to us at support@grantera.org with this Transaction_Reference: ${transactionReference}, and try refreshing, the page to see if it can be resolved`,
-          statusMsg:
-            'Unfortunately an error occured while verifying your transaction.',
-        })
-        return toast.error(
+      const handler = errorHandlers[res.data.message]
+      if (handler) {
+        handler()
+      } else {
+        showAlert(
+          false,
+          'Unfortunately an error occured while verifying your transaction.',
+          `Sorry an error occured, please reach out to us at support@grantera.org with this Transaction_Reference: ${transactionReference}, and try refreshing the page to see if it can be resolved`
+        )
+        toast.error(
           `Sorry an error occured, please reach out to us with this Transaction_Reference: ${transactionReference}`
         )
       }
+
+      return false
     } catch (error) {
-      setVerifyPay(false)
       console.error('Error verifying transaction:', error)
-      setAppContext({ ...appContext, spinner: false })
+      setVerifyPay(false)
+      setAppContext((prev) => ({ ...prev, spinner: false }))
+
+      showAlert(
+        false,
+        'Payment Verification Error',
+        'An error occurred while verifying the transaction. Please refresh the page.'
+      )
       toast.error(
         'An error occurred while verifying the transaction. Please refresh the page.'
       )
-      setAlertMsg({
-        ...alertMsg,
-        open: true,
-        status: false,
-        msg: 'An error occurred while verifying the transaction. Please refresh the page.',
-        statusMsg: 'Payment Verification Error',
-      })
-    }
-  }
 
+      return false
+    }
+  }, [transactionReference, setAppContext, showAlert])
+
+  // Fetch unique code
+  const fetchUniqueCode = useCallback(async () => {
+    try {
+      const res = await getUserCodeRef.current({ transactionReference })
+
+      if (res.data.status === 'success') {
+        toast.success(res.data.message)
+        setUniqueCode(res.data.data)
+        if (res.data.email) {
+          setFormData((prev) => ({ ...prev, email: res.data.email }))
+        }
+        return true
+      }
+
+      // Handle error cases
+      if (
+        res.data.message ===
+        "You can't view this page again as you have already applied"
+      ) {
+        showAlert(
+          false,
+          'Restricted Access to this page',
+          'Sorry it seems you have submitted an application in the past already.'
+        )
+        toast.error(res.data.message)
+      } else if (res.data.message === "Could not verify user's payment") {
+        showAlert(
+          false,
+          'Transaction record missing/Yet to be received and so cannot generate a uniqueCode for your application',
+          `Sorry it seems we haven't received your payment details yet. Please give us a little time to resolve this and please don't close the page as we would try to resolve this, But if it persists for too long please reach out to us at support@grantera.org with this transaction reference: ${transactionReference}`
+        )
+      } else {
+        toast.error(
+          "couldn't get applicant's UniqueCode for application. Please try refreshing the page"
+        )
+      }
+
+      return false
+    } catch (error) {
+      console.error('Error fetching user code:', error)
+      showAlert(
+        false,
+        'Transaction record missing/Yet to be received and so cannot generate a uniqueCode for your application',
+        `Sorry it seems we haven't received your payment details yet. Please give us a little time to resolve this and please don't close the page as we would try to resolve this, But if it persists for too long please reach out to us at support@grantera.org with this transaction reference: ${transactionReference}`
+      )
+      return false
+    }
+  }, [transactionReference, showAlert])
+
+  // Initialize on mount
   useEffect(() => {
     let isMounted = true
 
-    const init = async () => {
+    const initialize = async () => {
       try {
-        await VerifyPay()
-      } catch (error) {
-        console.error('VerifyPay failed:', error)
-      }
+        const paymentVerified = await verifyPayment()
 
-      try {
-        const getUserUniqueCode = httpsCallable(functions, 'getUserUniqueCode')
-        if (verifyPay) {
-          const res = await getUserUniqueCode({ transactionReference })
-          if (!isMounted) return
-          console.log('uq:', res)
-          if (res.data.status === 'success') {
-            toast.success(res.data.message)
-            return setUniqueCode(res.data.data)
-          } else {
-            if (
-              res.data.message ==
-              "You can't view this page again as you have already applied"
-            ) {
-              setAlertMsg({
-                ...alertMsg,
-                open: true,
-                status: false,
-                msg: 'Sorry it seems you have submitted an application in the past already.',
-                statusMsg: 'Restricted Access to this page',
-              })
-              //setDuplicateApplicantion()
-              return toast.error(res.data.message)
-            }
-            //try webhook retry here
-            if ((res.data.message = "Could not verify user's payment")) {
-              setAlertMsg({
-                ...alertMsg,
-                open: true,
-                status: false,
-                msg: `Sorry it seems we haven't received your payment details yet. Please give us a little time to resolve this and please don't close the page as we would try to resolve this, But if it persists for too long please reach out to us at support@grantera.org with this transaction reference: ${transactionReference}`,
-                statusMsg:
-                  'Transaction record missing/Yet to be received and so cannot generate a uniqueCode for your application',
-              })
-            }
-            toast.error(
-              "couldn't get applicant's UniqueCode for application. Please try refreshing the page"
-            )
-            //webHook retry logic
-            //setWebHookFailed(true)
-          }
+        if (paymentVerified && isMounted) {
+          await fetchUniqueCode()
         }
       } catch (error) {
-        console.error('Error fetching user code:', error)
-        setAlertMsg({
-          ...alertMsg,
-          open: true,
-          status: false,
-          msg: `Sorry it seems we haven't received your payment details yet. Please give us a little time to resolve this and please don't close the page as we would try to resolve this, But if it persists for too long please reach out to us at support@grantera.org with this transaction reference: ${transactionReference}`,
-          statusMsg:
-            'Transaction record missing/Yet to be received and so cannot generate a uniqueCode for your application',
-        })
-        //webHook retry logic
-        //setWebHookFailed(true)
+        console.error('Initialization error:', error)
       } finally {
         if (isMounted) {
           setAppContext((prev) => ({ ...prev, spinner: false }))
@@ -277,24 +213,31 @@ export default function PaymentSuccessPage() {
       }
     }
 
-    init()
+    initialize()
 
     return () => {
       isMounted = false
     }
-  }, [transactionReference, verifyPay])
+  }, []) // Empty dependency array - runs once on mount
 
-  /* const uniqueCode =
-    'GRA-2025-' + Math.random().toString(36).substring(2, 8).toUpperCase() */
-  const handleCopyCode = () => {
+  // Memoized copy handler
+  const handleCopyCode = useCallback(() => {
     navigator.clipboard.writeText(uniqueCode)
     toast.success('Copied')
-  }
+  }, [uniqueCode])
 
-  if (isSubmitted) {
+  // Memoized close alert handler
+  const handleCloseAlert = useCallback(() => {
+    setAlertMsg((prev) => ({ ...prev, open: false }))
+  }, [setAlertMsg])
+
+  // Success screen component
+  const SuccessScreen = useMemo(() => {
+    if (!isSubmitted) return null
+
     return (
       <div
-        className={`min-h-screen bg-background  ${
+        className={`min-h-screen bg-background ${
           appContext.spinner ? 'h-screen overflow-hidden' : ''
         }`}
       >
@@ -354,12 +297,16 @@ export default function PaymentSuccessPage() {
         <Footer />
       </div>
     )
+  }, [isSubmitted, uniqueCode, formData.email, appContext.spinner])
+
+  if (isSubmitted) {
+    return SuccessScreen
   }
 
-  //add a button so they can click and proceed to submitting their proposals
-  return (
-    <>
-      {verifyPay && uniqueCode ? (
+  // Main application form view
+  if (verifyPay && uniqueCode) {
+    return (
+      <>
         <div className="min-h-screen bg-background">
           <Navigation />
           <main className="pt-24 pb-16">
@@ -426,15 +373,29 @@ export default function PaymentSuccessPage() {
           </main>
           <Footer />
         </div>
-      ) : (
-        ''
-      )}
+
+        {alertMsg.open && (
+          <FeedbackAlert
+            isOpen={alertMsg.open}
+            isClose={handleCloseAlert}
+            message={{
+              status: alertMsg.status,
+              statusMsg: alertMsg.statusMsg,
+              message: alertMsg.msg,
+            }}
+          />
+        )}
+      </>
+    )
+  }
+
+  // Loading/error state
+  return (
+    <>
       {alertMsg.open && (
         <FeedbackAlert
           isOpen={alertMsg.open}
-          isClose={() =>
-            setAlertMsg((prev) => ({ ...prev, open: !alertMsg.open }))
-          }
+          isClose={handleCloseAlert}
           message={{
             status: alertMsg.status,
             statusMsg: alertMsg.statusMsg,

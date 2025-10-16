@@ -41,138 +41,68 @@ export const buildApplicantEmail = (data) => `
 <!DOCTYPE html>
 <html>
 <head>
-  <style>
-    body { 
-      font-family: 'Segoe UI', Arial, sans-serif; 
-      background-color: #f5f5f5; 
-      margin: 0; 
-      padding: 0; 
-    }
-    .container { 
-      max-width: 600px; 
-      margin: 40px auto; 
-      background: #fff; 
-      border-radius: 12px; 
-      overflow: hidden; 
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
-    }
-    .header { 
-      background: linear-gradient(135deg, #003366, #00994C); 
-      padding: 40px 30px; 
-      text-align: center; 
-      color: #fff; 
-    }
-    .logo-title {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-    }
-    .logo-title img {
-    margin-top: 1rem;
-      width: 65px;
-      height: 65px;
-      border-radius: 50%;
-      object-fit: contain;
-      
-      padding: 4px;
-    }
-    .logo-title h1 {
-      font-size: 32px;
-      margin: 0;
-      color: #fff;
-    }
-    .content { 
-      padding: 40px 30px; 
-      color: #333; 
-    }
-    .greeting { 
-      font-size: 24px; 
-      color: #003366; 
-      margin-bottom: 20px; 
-    }
-    .code-box { 
-      background: #f8f9fa; 
-      border-left: 4px solid #00994C; 
-      padding: 20px; 
-      margin: 30px 0; 
-      border-radius: 8px; 
-    }
-    .code { 
-      font-size: 28px; 
-      font-weight: bold; 
-      color: #00994C; 
-      letter-spacing: 2px; 
-      margin: 10px 0; 
-    }
-    .highlight { 
-      background: #FFB800; 
-      color: #003366; 
-      padding: 12px 24px; 
-      border-radius: 6px; 
-      display: inline-block; 
-      margin: 20px 0; 
-      font-weight: 600; 
-    }
-    .button { 
-      background: #00994C; 
-      color: #fff !important; 
-      padding: 14px 32px; 
-      border-radius: 8px; 
-      text-decoration: none; 
-      display: inline-block; 
-      margin: 20px 0; 
-      font-weight: 600; 
-    }
-    .footer { 
-      background: #f8f9fa; 
-      padding: 30px; 
-      text-align: center; 
-      color: #666; 
-      font-size: 14px; 
-    }
-  </style>
+  <meta charset="UTF-8">
+  <title>Grantera Grant Application</title>
 </head>
-<body>
-  <div class="container">
-    <div class="header">
-      <div class="logo-title">
-        <img src="https://firebasestorage.googleapis.com/v0/b/the-grantera-hub-ecac0.firebasestorage.app/o/logo.svg?alt=media&token=46065c38-0916-454e-b212-a4c303e7d9da" alt="Grantera Logo" />
-        <h1>Grantera</h1>
+<body style="margin:0; padding:0; font-family:'Segoe UI', Arial, sans-serif; background-color:#f5f5f5;">
+  <div style="max-width:600px; margin:40px auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+    
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #003366, #00994C); padding:40px 30px; text-align:center; color:#fff;">
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;">
+        <img src="https://res.cloudinary.com/dlcmo3jrt/image/upload/v1760556629/Grantera_logo_2x_rl8lrc.png" 
+             alt="Grantera Logo" 
+             width="70" height="70" 
+             style="display:block; border-radius:50%; margin:0;" />
+        <h1 style="font-size:36px; font-weight:900; margin:0; color:#fff; line-height:1.2;">Grantera</h1>
       </div>
-      <p style="color: #FFB800; margin-top: 10px;">Empowering African Entrepreneurs</p>
+      <p style="color:#FFB800; margin-top:10px; font-size:14px;">Empowering African Entrepreneurs</p>
     </div>
 
-    <div class="content">
-      <h2 class="greeting">Hello ${data.fullName}! 👋</h2>
+    <!-- Content -->
+    <div style="padding:40px 30px; color:#333;">
+      <h2 style="font-size:24px; color:#003366; margin-bottom:20px;">Hello ${
+        data.fullName
+      }! 👋</h2>
       <p>Thank you for applying to the <strong>Grantera Grant Program</strong>. We've successfully received your application.</p>
-      <div class="code-box">
+      
+      <div style="background:#f8f9fa; border-left:4px solid #00994C; padding:20px; margin:30px 0; border-radius:8px;">
         <p>Your Unique Application Code:</p>
-        <div class="code">${data.uniqueCode}</div>
-        <p style="font-size: 13px;">⚠️ Save this code – you'll need it for your proposal submission.</p>
+        <div style="font-size:28px; font-weight:bold; color:#00994C; letter-spacing:2px; margin:10px 0;">
+          ${data.uniqueCode}
+        </div>
+        <p style="font-size:13px;">⚠️ Save this code – you'll need it for your proposal submission.</p>
       </div>
-      <div class="highlight">📄 Next Step: Submit Your Business Proposal</div>
-      <p>You can now go ahead and submit your business proposal if you haven't already at: </p>
+
+      <div style="background:#FFB800; color:#003366; padding:12px 24px; border-radius:6px; display:inline-block; margin:20px 0; font-weight:600;">
+        📄 Next Step: Submit Your Business Proposal
+      </div>
+
+      <p>You can now go ahead and submit your business proposal if you haven't already at:</p>
       <ul>
-        <li><a href="Grantera.org/submit-proposal" target="_blank">Grantera.org/submit-proposal<a/></li>
+        <li><a href="https://Grantera.org/submit-proposal" target="_blank" style="color:#00994C;">Grantera.org/submit-proposal</a></li>
       </ul>
+
       ${
         data.wantsMentorship
-          ? `<p style="background:#fff3cd; padding:15px; border-left:4px solid #FFB800; border-radius:8px;">
+          ? `<p style="background:#fff3cd; padding:15px; border-left:4px solid #FFB800; border-radius:8px; margin:20px 0;">
               🎯 <strong>Mentorship:</strong> You're enrolled! Our mentors will contact you soon.
             </p>`
           : ''
       }
-      <p><strong>Application Details:</strong><br>Business: ${
-        data.businessName
-      }<br>Grant Amount: ₦${Number(data.grantAmount).toLocaleString()}</p>
+
+      <p><strong>Application Details:</strong><br>
+      Business: ${data.businessName}<br>
+      Grant Amount: ₦${Number(data.grantAmount).toLocaleString()}</p>
     </div>
 
-    <div class="footer">
+    <!-- Footer -->
+    <div style="background:#f8f9fa; padding:30px; text-align:center; color:#666; font-size:14px;">
       <p><strong>Grantera</strong></p>
       <p>noreply@grantera.com</p>
       <p style="font-size:12px; color:#999;">© 2025 Grantera. All rights reserved.</p>
     </div>
+
   </div>
 </body>
 </html>
@@ -183,68 +113,65 @@ export const buildApplicantEmail = (data) => `
 export const proposalMail = (applicantName) => `
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Grantera Proposal Confirmation</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-  </head>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grantera Proposal Confirmation</title>
+</head>
+<body style="margin:0; padding:0; font-family:'Segoe UI', Arial, sans-serif; background-color:#f5f5f5;">
+  <div style="max-width:480px; margin:40px auto; background:#fff; border-radius:16px; box-shadow:0 4px 6px rgba(0,0,0,0.1); border:1px solid #f3f3f3; overflow:hidden;">
+    
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #003366, #00994C); color:#fff; padding:32px 24px; text-align:center;">
+      <div style="display:flex; align-items:center; justify-content:center; gap:16px;">
+        <img src="https://res.cloudinary.com/dlcmo3jrt/image/upload/v1760556629/Grantera_logo_2x_rl8lrc.png" 
+             alt="Grantera Logo" 
+             width="60" height="60" 
+             style="display:block; border-radius:50%; background:rgba(255,255,255,0.2); padding:4px;" />
+        <h1 style="font-size:28px; font-weight:800; margin:0; color:#fff; line-height:1.2;">Grantera</h1>
+      </div>
+      <p style="font-size:14px; opacity:0.9; margin-top:8px;">Empowering Africa’s Boldest Innovators</p>
+    </div>
 
-  <body class="bg-gray-50 font-sans antialiased">
-    <div class="max-w-xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mt-10">
-      
-      <!-- Header -->
-      <div class="bg-gradient-to-r from-blue-800 via-green-600 to-green-500 text-white py-6 px-8 text-center">
-        <h1 class="text-2xl font-bold tracking-tight flex items-center justify-center gap-2">
-          <img src="https://firebasestorage.googleapis.com/v0/b/the-grantera-hub-ecac0.firebasestorage.app/o/logo.svg?alt=media&token=46065c38-0916-454e-b212-a4c303e7d9da" alt="Grantera Logo" class="h-14 w-14 flex justify-center items-center backdrop-blur-lg bg-amber-300/60 rounded-full pt-2" />
-          Grantera
-        </h1>
-        <p class="text-sm opacity-90 mt-1">
-          Empowering Africa’s Boldest Innovators
+    <!-- Body -->
+    <div style="padding:24px; color:#333;">
+      <h2 style="font-size:20px; font-weight:600; margin-bottom:16px; color:#00994C;">Proposal Received 🎉</h2>
+
+      <p style="font-size:14px; line-height:1.5; margin-bottom:12px;">
+        Hi <span style="font-weight:600; color:#111;">${applicantName}</span>,
+      </p>
+
+      <p style="font-size:14px; line-height:1.5; margin-bottom:12px;">
+        Great news — your proposal has been successfully received by the 
+        <span style="color:#00994C; font-weight:600;">Grantera Review Team</span>.
+      </p>
+
+      <p style="font-size:14px; line-height:1.5; margin-bottom:12px;">
+        Our reviewers are currently assessing submissions based on creativity,
+        feasibility, and real-world impact. You’ll be notified as soon as your proposal
+        advances to the next phase.
+      </p>
+
+      <div style="background:#e6f4ea; border-left:4px solid #00994C; border-radius:8px; padding:12px; margin-top:16px;">
+        <p style="font-size:14px; font-weight:500; color:#006633; margin:0;">
+          💡 Keep pushing forward — innovation starts with bold ideas like yours.
         </p>
       </div>
 
-      <!-- Body -->
-      <div class="px-8 py-6 text-gray-700">
-        <h2 class="text-xl font-semibold mb-3 text-green-700">Proposal Received 🎉</h2>
-
-        <p class="text-sm leading-relaxed mb-4">
-          Hi <span class="font-semibold text-gray-900">${applicantName}</span>,
-        </p>
-
-        <p class="text-sm leading-relaxed mb-4">
-          Great news — your proposal has been successfully received by the 
-          <span class="text-green-700 font-semibold">Grantera Review Team</span>.
-        </p>
-
-        <p class="text-sm leading-relaxed mb-4">
-          Our reviewers are currently assessing submissions based on creativity,
-          feasibility, and real-world impact. You’ll be notified as soon as your proposal
-          advances to the next phase.
-        </p>
-
-        <div class="bg-green-50 border-l-4 border-green-600 rounded-md px-4 py-3 mt-6">
-          <p class="text-sm text-green-800 font-medium">
-            💡 Keep pushing forward — innovation starts with bold ideas like yours.
-          </p>
-        </div>
-
-        <div class="mt-6 text-sm text-gray-500">
-          <p>
-            This is a <span class="font-semibold text-gray-800">no-reply</span> email.
-          </p>
-        </div>
-      </div>
-
-      <!-- Footer -->
-      <div class="bg-gray-100 text-center py-4 text-xs text-gray-500">
-        <p>© 2025 Grantera. All rights reserved.</p>
-        <p class="mt-1">Driving Innovation. Powering Opportunity.</p>
+      <div style="margin-top:16px; font-size:12px; color:#777;">
+        <p>This is a <span style="font-weight:600; color:#333;">no-reply</span> email.</p>
       </div>
     </div>
-  </body>
-</html>
 
+    <!-- Footer -->
+    <div style="background:#f3f3f3; text-align:center; padding:16px; font-size:12px; color:#777;">
+      <p style="margin:0;">© 2025 Grantera. All rights reserved.</p>
+      <p style="margin-top:4px;">Driving Innovation. Powering Opportunity.</p>
+    </div>
+
+  </div>
+</body>
+</html>
 `
 
 export default function GranteraEmailSystem() {
@@ -281,7 +208,8 @@ export default function GranteraEmailSystem() {
   }
 
   ///preview
-  // const emailPreview = buildApplicantEmail(applicant)
+
+  //const emailPreview = buildApplicantEmail(applicant)
   const emailPreview = proposalMail('honour')
 
   return (
