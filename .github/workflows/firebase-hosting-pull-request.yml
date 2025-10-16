@@ -7,6 +7,7 @@ permissions:
   checks: write
   contents: read
   pull-requests: write
+
 jobs:
   build_and_preview:
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
@@ -14,15 +15,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Move into the actual project directory
+      # Install dependencies from root directory (same as package.json)
       - name: Install dependencies
         run: npm install
-        working-directory: ./The_Grantera_Hub
+        working-directory: .
 
+      # Build the project
       - name: Build project
         run: npm run build
-        working-directory: ./The_Grantera_Hub
+        working-directory: .
 
+      # Deploy preview to Firebase Hosting
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
