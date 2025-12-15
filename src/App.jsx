@@ -9,6 +9,10 @@ import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import SpinnerProvider from '@/Components/SpinnerProvider'
 import GranteraEmailSystem from '@/Components/utils/Sample'
+import AffDashboardPage from '@/pages/affiliates/AffiliateDash'
+import LoginPage from '@/pages/affiliates/login'
+import SignupPage from '@/pages/affiliates/signUp'
+import Home from '@/pages/affiliates/Affiliates'
 
 function App() {
   return (
@@ -16,9 +20,13 @@ function App() {
       <TooltipProvider>
         <Sonner />
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/:referredBy?/:affiliateName?/:affiliateUid?" element={<HomePage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/affiliateDash" element={<AffDashboardPage />} />
+          <Route path="/affiliateLogin" element={<LoginPage />} />
+          <Route path="/affiliateSignUp" element={<SignupPage />} />
+          <Route path="/affiliate" element={<Home />} />
           <Route path="/payment-page" element={<PaymentPage />} />
           <Route
             path="/payment-page/success"

@@ -1,5 +1,3 @@
-'use client'
-
 import { useEffect, useState, useMemo, useCallback, memo } from 'react'
 import {
   Card,
@@ -50,6 +48,7 @@ import {
   Activity,
   Search,
   Bell,
+  LinkIcon,
   ChevronLeft,
   ChevronRight,
   MoreVertical,
@@ -96,6 +95,9 @@ import DocumentViewer from '@/components/PDFViewer'
 import { useRetryAI } from '@/components/useRetryAI'
 import { onAuthStateChanged } from 'firebase/auth'
 import { useSpinner } from '@/components/SpinnerProvider'
+import { DashboardLayout } from '@/components/dashboard-layout'
+import { AffiliateStats } from '@/components/statsCard-affiliate-admin'
+import { AffiliateTable } from '@/components/affiliateTable'
 
 const StatusBadge = memo(({ status }) => {
   const config = useMemo(
@@ -264,12 +266,14 @@ export default function AdminDashboard() {
   })
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [affiliates, setAffiliates] = useState(null)
   const [authUser, setAuthUser] = useState(false)
   const [activeTab, setActiveTab] = useState('dashboard')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [aiStatusFilter, setAiStatusFilter] = useState('all')
   const [reviewerFilter, setReviewerFilter] = useState('all')
+  const [affiliatesFilter, setAffiliatesFilter] = useState('all')
   const [grantAmountFilter, setGrantAmountFilter] = useState('all')
   const [mentorshipFilter, setMentorshipFilter] = useState('all')
   const [reviewers, setReviewers] = useState(null)
@@ -362,6 +366,27 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!authUser) return
 
+    const affiliates = collection(db, 'affiliatesSummary')
+    const unsubscribe = onSnapshot(
+      affiliates,
+      (snapshot) => {
+        const referrers = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        setAffiliates(referrers)
+      },
+      (error) => {
+        console.error('Error fetching affiliates:', error)
+      }
+    )
+
+    return () => unsubscribe()
+  }, [authUser])
+
+  useEffect(() => {
+    if (!authUser) return
+
     const notificationsRef = collection(db, 'notifications')
     const unsubscribe = onSnapshot(
       notificationsRef,
@@ -403,6 +428,7 @@ export default function AdminDashboard() {
     if (!proposals) return []
 
     let filtered = proposals
+    // console.log("proposals", proposals)
 
     if (currentUser?.role === 'reviewer') {
       filtered = filtered.filter(
@@ -429,6 +455,10 @@ export default function AdminDashboard() {
 
     if (reviewerFilter !== 'all') {
       filtered = filtered.filter((p) => p.assignedReviewerId === reviewerFilter)
+    }
+
+    if (affiliatesFilter !== 'all') {
+      filtered = filtered.filter((p) => p.affiliateName === affiliatesFilter)
     }
 
     if (grantAmountFilter !== 'all') {
@@ -466,6 +496,7 @@ export default function AdminDashboard() {
     statusFilter,
     aiStatusFilter,
     reviewerFilter,
+    affiliatesFilter,
     grantAmountFilter,
     mentorshipFilter,
     currentUser,
@@ -507,12 +538,20 @@ export default function AdminDashboard() {
     return reviewers.filter((r) => r.role?.toLowerCase() === 'reviewer')
   }, [reviewers])
 
+  const filteredAffiliates = useMemo(() => {
+    if (!affiliates) return []
+    //return affiliates.filter((r) => r.role?.toLowerCase() === 'reviewer')
+    //return affiliates.filter((r) => r.role?.toLowerCase() === 'reviewer')
+    return affiliates
+  }, [affiliates])
+
   const navItems = useMemo(
     () => [
       { id: 'dashboard', label: 'Dashboard Overview', icon: LayoutDashboard },
       { id: 'proposals', label: 'Proposals', icon: FileText },
       // { id: 'reviewers', label: 'Reviewers', icon: Users },
       { id: 'ai-logs', label: 'AI Logs', icon: Brain },
+      { id: 'affiliates', label: 'Affiliates', icon: Users },
     ],
     []
   )
@@ -642,73 +681,73 @@ export default function AdminDashboard() {
     setShowReassignModal(true)
   }, [])
 
-const handleConfirmReassign = useCallback(async () => {
-  if (selectedReviewerId && proposalToReassign) {
-    try {
-      setAppContext({ ...appContext, spinner: true })
+  const handleConfirmReassign = useCallback(async () => {
+    if (selectedReviewerId && proposalToReassign) {
+      try {
+        setAppContext({ ...appContext, spinner: true })
 
-      // Document references
-      const applicantsRef = doc(db, 'applicants', proposalToReassign.id)
-      const reviewerRef = doc(db, 'users', selectedReviewerId)
+        // Document references
+        const applicantsRef = doc(db, 'applicants', proposalToReassign.id)
+        const reviewerRef = doc(db, 'users', selectedReviewerId)
 
-      // Fetch new reviewer data
-      const reviewerSnap = await getDoc(reviewerRef)
-      if (!reviewerSnap.exists()) throw new Error('Selected reviewer not found')
-      const reviewerData = reviewerSnap.data()
+        // Fetch new reviewer data
+        const reviewerSnap = await getDoc(reviewerRef)
+        if (!reviewerSnap.exists())
+          throw new Error('Selected reviewer not found')
+        const reviewerData = reviewerSnap.data()
 
-      // Fetch applicant data
-      const applicantSnap = await getDoc(applicantsRef)
-      if (!applicantSnap.exists()) throw new Error('Applicant not found')
-      const applicantData = applicantSnap.data()
+        // Fetch applicant data
+        const applicantSnap = await getDoc(applicantsRef)
+        if (!applicantSnap.exists()) throw new Error('Applicant not found')
+        const applicantData = applicantSnap.data()
 
-      const prevReviewerID = applicantData?.assignedReviewerId
+        const prevReviewerID = applicantData?.assignedReviewerId
 
-      // If a previous reviewer exists, decrement their assignedCount
-      if (prevReviewerID) {
-        const prevReviewerRef = doc(db, 'users', prevReviewerID)
-        const prevReviewerSnap = await getDoc(prevReviewerRef)
-        if (prevReviewerSnap.exists()) {
-          const prevData = prevReviewerSnap.data()
-          await setDoc(
-            prevReviewerRef,
-            {
-              assignedCount: Math.max((prevData.assignedCount || 1) - 1, 0),
-            },
-            { merge: true }
-          )
+        // If a previous reviewer exists, decrement their assignedCount
+        if (prevReviewerID) {
+          const prevReviewerRef = doc(db, 'users', prevReviewerID)
+          const prevReviewerSnap = await getDoc(prevReviewerRef)
+          if (prevReviewerSnap.exists()) {
+            const prevData = prevReviewerSnap.data()
+            await setDoc(
+              prevReviewerRef,
+              {
+                assignedCount: Math.max((prevData.assignedCount || 1) - 1, 0),
+              },
+              { merge: true }
+            )
+          }
         }
+
+        // Increment the new reviewer's assignedCount
+        await setDoc(
+          reviewerRef,
+          {
+            assignedCount: (reviewerData.assignedCount || 0) + 1,
+          },
+          { merge: true }
+        )
+
+        // Update applicant's assigned reviewer info
+        await setDoc(
+          applicantsRef,
+          {
+            assignedReviewerId: selectedReviewerId,
+            assignedReviewerName: reviewerData?.name,
+          },
+          { merge: true }
+        )
+
+        setShowReassignModal(false)
+        toast.success('Reviewer reassigned successfully!')
+      } catch (error) {
+        console.error('Error reassigning reviewer:', error)
+        toast.error('Failed to assign reviewer')
+      } finally {
+        setAppContext({ ...appContext, spinner: false })
       }
-
-      // Increment the new reviewer's assignedCount
-      await setDoc(
-        reviewerRef,
-        {
-          assignedCount: (reviewerData.assignedCount || 0) + 1,
-        },
-        { merge: true }
-      )
-
-      // Update applicant's assigned reviewer info
-      await setDoc(
-        applicantsRef,
-        {
-          assignedReviewerId: selectedReviewerId,
-          assignedReviewerName: reviewerData?.name,
-        },
-        { merge: true }
-      )
-
-      setShowReassignModal(false)
-      toast.success('Reviewer reassigned successfully!')
-    } catch (error) {
-      console.error('Error reassigning reviewer:', error)
-      toast.error('Failed to assign reviewer')
-    } finally {
-      setAppContext({ ...appContext, spinner: false })
     }
-  }
-}, [selectedReviewerId, proposalToReassign, appContext, setAppContext])
-
+  }, [selectedReviewerId, proposalToReassign, appContext, setAppContext])
 
   const handleChangeStatus = useCallback(
     async (proposalId, newStatus) => {
@@ -776,14 +815,14 @@ const handleConfirmReassign = useCallback(async () => {
     // })
 
     const activityRef = collection(db, `proposals/${proposal.id}/activity`)
-        const a = query(activityRef, orderBy('createdAt', 'desc'), limit(10))
-        getDocs(a).then((snapshot) => {
-          const activitiesData = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }))
-          setActivities(activitiesData)
-        })
+    const a = query(activityRef, orderBy('createdAt', 'desc'), limit(10))
+    getDocs(a).then((snapshot) => {
+      const activitiesData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
+      setActivities(activitiesData)
+    })
 
     const commentsRef = collection(db, `proposals/${proposal.id}/comments`)
     const q = query(commentsRef, orderBy('createdAt', 'desc'))
@@ -1003,7 +1042,7 @@ const handleConfirmReassign = useCallback(async () => {
                     </Button>
                   )}
 
-                 {/*  <Button
+                  {/*  <Button
                     variant="outline"
                     size="sm"
                     onClick={toggleRole}
@@ -1381,6 +1420,27 @@ const handleConfirmReassign = useCallback(async () => {
                             </SelectContent>
                           </Select>
                         )}
+                        {/* Affiliate Filter (Admin only) */}
+                        {currentUser.role === 'admin' && (
+                          <Select
+                            value={affiliatesFilter}
+                            onValueChange={setAffiliatesFilter}
+                          >
+                            <SelectTrigger className="w-[140px]">
+                              <SelectValue placeholder="Reviewer" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">
+                                All Affiliates
+                              </SelectItem>
+                              {filteredAffiliates?.map((r) => (
+                                <SelectItem key={r.id} value={r.name}>
+                                  {r.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
 
                         {currentUser.role === 'admin' && (
                           <Button
@@ -1448,12 +1508,12 @@ const handleConfirmReassign = useCallback(async () => {
                                   )}
                                 </TableCell>
                                 <TableCell>
-                                    <span className="text-sm">
-                                      {reviewers?.find(
-                                        (r) =>
-                                          r.id === proposal.assignedReviewerId
-                                      )?.name || 'Unassigned'}
-                                    </span>
+                                  <span className="text-sm">
+                                    {reviewers?.find(
+                                      (r) =>
+                                        r.id === proposal.assignedReviewerId
+                                    )?.name || 'Unassigned'}
+                                  </span>
                                 </TableCell>
                                 <TableCell className="text-xs text-gray-600">
                                   {new Date(
@@ -1667,6 +1727,25 @@ const handleConfirmReassign = useCallback(async () => {
                   </CardContent>
                 </Card>
               )}
+
+              {/* Affiliates */}
+              {activeTab === 'affiliates' && (
+                <>
+                  <div className="mb-8">
+                    <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                      Affiliate Management
+                    </h1>
+                    <p className="text-gray-600">
+                      Monitor and manage your affiliate network performance
+                    </p>
+                  </div>
+
+                  <AffiliateStats />
+                  <div className="mt-8">
+                    <AffiliateTable />
+                  </div>
+                </>
+              )}
             </main>
           </div>
 
@@ -1794,6 +1873,48 @@ const handleConfirmReassign = useCallback(async () => {
                           </div>
                         </div>
                       </div>
+
+                      {selectedProposal?.affiliateName && (
+                        <div className="flex items-start gap-3">
+                          <LinkIcon className="w-5 h-5 text-[#00994C] mt-0.5" />
+                          <div>
+                            <div className="text-xs text-gray-600 mb-1">
+                              Referred By
+                            </div>
+                            <div className="font-semibold text-[#003366] text-sm break-all">
+                              {selectedProposal.affiliateName}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedProposal?.affliliateUid && (
+                        <div className="flex items-start gap-3">
+                          <LinkIcon className="w-5 h-5 text-[#00994C] mt-0.5" />
+                          <div>
+                            <div className="text-xs text-gray-600 mb-1">
+                              Affiliate Uid
+                            </div>
+                            <div className="font-semibold text-[#003366] text-sm break-all">
+                              {selectedProposal.affiliateUid}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedProposal?.referralCode && (
+                        <div className="flex items-start gap-3">
+                          <LinkIcon className="w-5 h-5 text-[#00994C] mt-0.5" />
+                          <div>
+                            <div className="text-xs text-gray-600 mb-1">
+                              Referral Code
+                            </div>
+                            <div className="font-semibold text-[#003366] text-sm break-all">
+                              {selectedProposal.referralCode}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1862,7 +1983,7 @@ const handleConfirmReassign = useCallback(async () => {
                             Grant Amount Requested
                           </div>
                           <div className="text-2xl font-bold text-[#003366]">
-                            {selectedProposal.grantAmount}
+                            {selectedProposal.grantAmount.toLocaleString()}
                           </div>
                         </div>
                       </div>

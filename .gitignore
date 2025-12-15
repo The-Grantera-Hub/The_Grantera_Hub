@@ -31,8 +31,10 @@ firebase.json
 *.rules
 /functions
 README.md
+new-feature-instructions.md
 src/App.css
 src/components/utils/email.jsx
+src/indexTest.md
 src/firebaseConfig.js
 src/pages/payment/gh.jsx
 src/pages/payment/stuffs.js

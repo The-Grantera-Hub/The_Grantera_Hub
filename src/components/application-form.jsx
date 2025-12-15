@@ -21,6 +21,7 @@ import { Link } from 'react-router-dom'
 
 export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
   const [step, setStep] = useState(1)
+  //const code = localStorage.getItem('referralCode') || null
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [wantsMentorship, setWantsMentorship] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
@@ -34,7 +35,21 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
     grantAmount: '',
     businessDescription: '',
     grantPurpose: '',
+    referralCode: localStorage.getItem('referralCode') || 'No referral',
+    affiliateName: localStorage.getItem('affiliateName') || 'No referral',
+    affiliateUid: localStorage.getItem('affiliateUid') || 'No id',
   })
+  useEffect(() => {
+    const referralCode = localStorage.getItem('referralCode') || 'No referral'
+    const affiliateName = localStorage.getItem('affiliateName') || null
+    const affiliateUid = localStorage.getItem('affiliateUid') || null
+    setFormData((prev) => ({
+      ...prev,
+      referralCode,
+      affiliateName,
+      affiliateUid,
+    }))
+  }, [])
 
   // Memoized input change handler to prevent recreation on every render
   const handleInputChange = useCallback((e) => {
@@ -99,14 +114,17 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
           fullName: formData.fullName,
           uniqueCode,
           email: formData.email,
+          affiliateUid: formData.affiliateUid,
           phone: formData.phone,
           businessName: formData.businessName,
           businessType: formData.businessType,
           location: formData.location,
-          grantAmount: formData.grantAmount,
+          grantAmount: Number(formData.grantAmount),
           businessDescription: formData.businessDescription,
           grantPurpose: formData.grantPurpose,
           wantsMentorship,
+          referralCode: formData.referralCode,
+          affiliateName: formData.affiliateName,
           status: 'pending',
           lastStatusUpdatedBy: 'System',
           aiStatus: 'idle',
@@ -114,6 +132,11 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
         })
 
         setIsSubmitted(true)
+        localStorage.removeItem('referralCode')
+        localStorage.removeItem('affiliateName')
+        localStorage.removeItem('affiliateUid')
+
+        // Send confirmation email
         await handleSend()
       } catch (error) {
         if (error.message === 'Missing or insufficient permissions.') {
@@ -344,6 +367,36 @@ export default function ApplicationForm({ uniqueCode, rawTx_Ref }) {
                   required
                 />
               </div>
+              {/* Referral Code */}
+              <div className="space-y-2">
+                <Label htmlFor="referralCode">Referral Code</Label>
+                <Textarea
+                  id="referralCode"
+                  name="referralCode"
+                  /*  readOnly */
+                  value={formData.referralCode}
+                  disabled
+                  placeholder="Referral Code (if any)"
+                  rows={2}
+                  required
+                />
+              </div>
+
+              {formData?.affiliateName ? (
+                <div className="space-y-2">
+                  <Label htmlFor="affiliateName">affiliate Name</Label>
+                  <Textarea
+                    id="affiliateName"
+                    name="affiliateName"
+                    /*  readOnly */
+                    value={formData?.affiliateName}
+                    disabled
+                    placeholder="Affiliate Name (if any)"
+                    rows={2}
+                    required
+                  />
+                </div>
+              ) : null}
 
               <div className="bg-[#00994C]/5 rounded-lg p-6 max-[700px]:pl-2 space-y-4">
                 <div className="flex items-start justify-between gap-4 max-[700px]:gap-2">

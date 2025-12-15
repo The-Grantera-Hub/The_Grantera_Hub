@@ -6,15 +6,15 @@ import { HowItWorksSection } from '@/components/sections/how-it-works-section'
 import { SuccessStoriesSection } from '@/components/sections/success-stories-section'
 import CommitmentFeeSection from '@/components/sections/commitment-fee-section'
 import { TimelineSection } from '@/components/sections/timeline-section'
-import ApplicationSection from '@/components/sections/application-section'
 import CtaSection from '@/components/sections/cta-section'
 import { useSpinner } from '@/components/SpinnerProvider'
 import { useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import { scroller } from 'react-scroll'
 
 export default function HomePage() {
   const { appContext } = useSpinner()
+  const { referredBy, affiliateName, affiliateUid } = useParams()
 
   const location = useLocation()
 
@@ -28,6 +28,14 @@ export default function HomePage() {
       })
     }
   }, [location])
+
+  useEffect(() => {
+    if (referredBy) {
+      localStorage.setItem('referralCode', referredBy)
+      localStorage.setItem('affiliateName', affiliateName)
+      localStorage.setItem('affiliateUid', affiliateUid)
+    }
+  }, [referredBy])
 
   return (
     <div
