@@ -110,18 +110,12 @@ export function Navbar() {
         {mobileOpen && (
           <div className="md:hidden border-t border-gray-200 mt-4 pt-4 space-y-4">
             <Link
-              to="/#features"
-              className="block text-gray-600 hover:text-[#002F6C]"
-            >
-              Features
-            </Link>
-            <Link
-              to="/login"
+              to="/affiliateLogin"
               className="block text-gray-600 hover:text-[#002F6C]"
             >
               Login
             </Link>
-            <Link to="/signup" className="block">
+            <Link to="/affiliateSignUp" className="block">
               <button className="w-full bg-[#fbbf24] text-[#002F6C] px-6 py-2 rounded-full font-semibold hover:bg-[#f59e0b] transition-colors">
                 Sign Up
               </button>
