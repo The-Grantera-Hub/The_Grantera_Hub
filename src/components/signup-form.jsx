@@ -50,56 +50,6 @@ export function SignupForm() {
     })
   }
 
-  const sandleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
-    setIsLoading(true)
-
-    // Validation
-    if (
-      !formData.fullName ||
-      !formData.email ||
-      !formData.phone ||
-      !formData.password ||
-      !formData.confirmPassword ||
-      !formData.bank ||
-      !formData.accountNumber
-    ) {
-      setError('All fields are required')
-      setIsLoading(false)
-      return
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
-      setIsLoading(false)
-      return
-    }
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    // Store data (in production, this would go to a database)
-    if (typeof window !== 'undefined') {
-      const referralCode =
-        'GT' + Math.random().toString(36).substr(2, 9).toUpperCase()
-      const affiliateData = {
-        ...formData,
-        referralCode,
-        referralLink: `https://grantera.com?ref=${referralCode}`,
-        createdAt: new Date().toISOString(),
-      }
-
-      localStorage.setItem('granteraAffiliate', JSON.stringify(affiliateData))
-      setSuccess(true)
-      setIsLoading(false)
-
-      // Redirect after 2 seconds
-      setTimeout(() => {
-        window.location.href = '/affiliateDash'
-      }, 2000)
-    }
-  }
 
   const handleSubmit = useCallback(
     async (e) => {
