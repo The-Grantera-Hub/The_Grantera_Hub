@@ -82,6 +82,9 @@ export default function PaymentSuccessPage() {
       setVerifyPay(false)
 
       // Handle specific error cases
+      {
+        /* redo this later */
+      }
       const errorHandlers = {
         'Request timed out': () => {
           showAlert(
@@ -130,7 +133,9 @@ export default function PaymentSuccessPage() {
       console.error('Error verifying transaction:', error)
       setVerifyPay(false)
       setAppContext((prev) => ({ ...prev, spinner: false }))
-
+      {
+        /* redo this later */
+      }
       showAlert(
         false,
         'Payment Verification Error',
@@ -304,6 +309,11 @@ export default function PaymentSuccessPage() {
   }
 
   // Main application form view
+  {
+    /* redo this later */
+    /* if (verifyPay && uniqueCode) */
+  }
+
   if (verifyPay && uniqueCode) {
     return (
       <>
@@ -373,7 +383,7 @@ export default function PaymentSuccessPage() {
           </main>
           <Footer />
         </div>
-
+        {/* redo this later */}
         {alertMsg.open && (
           <FeedbackAlert
             isOpen={alertMsg.open}
@@ -390,6 +400,9 @@ export default function PaymentSuccessPage() {
   }
 
   // Loading/error state
+  {
+    /* redo this later */
+  }
   return (
     <>
       {alertMsg.open && (

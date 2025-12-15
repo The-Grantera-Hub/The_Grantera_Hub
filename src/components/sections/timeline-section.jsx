@@ -13,7 +13,7 @@ const timelineSteps = [
     title: 'Review Period',
     description:
       'Our team reviews all applications and evaluates proposals for feasibility and impact.',
-    duration: '2-4 weeks',
+    duration: 'Commences February',
   },
   {
     icon: TrendingUp,
@@ -27,7 +27,7 @@ const timelineSteps = [
     title: 'Grant Disbursement',
     description:
       'Approved grants are disbursed directly to recipients to fuel their business growth.',
-    duration: '1-2 weeks',
+    duration: 'March 30th',
   },
 ]
 

@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import ScrollToSectionLink from '@/components/ScrollToSectionLink' // ✅ New import
+import ScrollToSectionLink from '@/components/ScrollToSectionLink'
 
 export function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
