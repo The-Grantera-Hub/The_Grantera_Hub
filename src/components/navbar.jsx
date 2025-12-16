@@ -78,12 +78,6 @@ export function Navbar() {
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center gap-8">
-            {/*  <Link
-              to="/#features"
-              className="text-gray-600 hover:text-[#002F6C] transition-colors"
-            >
-              Features
-            </Link> */}
             <Link
               to="/affiliatelogin"
               className="text-gray-600 hover:text-[#002F6C] transition-colors"

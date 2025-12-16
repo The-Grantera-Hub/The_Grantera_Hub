@@ -8,7 +8,6 @@ import {
 } from 'firebase/auth'
 import { useSpinner } from '@/components/SpinnerProvider'
 import { Timestamp } from 'firebase/firestore'
-
 import { doc, setDoc } from 'firebase/firestore'
 import { auth, db, functions } from '@/firebaseConfig'
 import { toast } from 'sonner'
@@ -49,7 +48,6 @@ export function SignupForm() {
       [e.target.name]: e.target.value,
     })
   }
-
 
   const handleSubmit = useCallback(
     async (e) => {
@@ -93,10 +91,10 @@ export function SignupForm() {
         const code = reffCode?.data?.data
 
         if (reffCode.data.status === 'success') {
-          setRefCode((prev) => {
-            prev = code
-            return prev
-          })
+          // setRefCode((prev) => {
+          //   prev = code
+          //   return prev
+          // })
           toast.success(reffCode.data.message)
         }
         if (reffCode.data.status === 'error') {
@@ -129,7 +127,7 @@ export function SignupForm() {
           referralCode: code,
           referralLink: `https://grantera.org/${code}/${formData.fullName}/${user.uid}`,
           phoneNumber: formData.phone,
-          createdAt: new Date(),
+          createdAt: Timestamp.fromDate(new Date()),
           totalInvited: 0,
           // lastReffered: null,
           approved: 0,
