@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+.firebase/
 
 # Editor directories and files
 .vscode/*
@@ -38,3 +39,6 @@ src/indexTest.md
 src/firebaseConfig.js
 src/pages/payment/gh.jsx
 src/pages/payment/stuffs.js
+/.firebase
+/.firebase
+/.firebase
